@@ -17,7 +17,6 @@ const {
     ActionRowBuilder, 
     ButtonBuilder, 
     ButtonStyle, 
-    EmbedBuilder, 
     PermissionFlagsBits 
 } = require('discord.js');
 
@@ -41,11 +40,9 @@ const CONFIG = {
     ticketSetupRoom: "1545847197768360000",
     ticketCategory1: "1545852986188628108", // الكاتيغوري الأول (أقصى حد 50 روم)
     ticketCategory2: "1545853004673196172", // الكاتيغوري الثاني لو امتلى الأول
-    archiveCategory: "1545854950456696923", // كاتيغوري الأرشفة/الإغلاق المؤقت
-    deleteCategory: "1545855025082011760", // كاتيغوري الحذف النهائي
     
-    supportRole: "1545853407825231962", // رول السبورت (يشاهد التكتات ويتحدث)
-    adminControlRole: "1545853891101466746" // رول التحكم الكامل وحذف التكتات النهائية
+    supportRole: "1545853407825231962", // رول السبورت (يحذف التكت بكلمة إغلاق فوراً)
+    adminControlRole: "1545853891101466746" // رول التحكم الكامل
 };
 
 client.once('ready', async () => {
@@ -63,7 +60,6 @@ client.on('guildMemberAdd', async (member) => {
     }
 });
 
-// إرسال رسالة التفعيل والتكتات عند بدء التشغيل أو تجهيز الأزرار
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
@@ -85,7 +81,7 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    // أمر إرسال زر فتح التكت
+    // أمر إرسال زر فتح التكت بالصيغة المطلوبة والزر الرمادي
     if (message.content === "!setup_ticket" && message.member.permissions.has(PermissionFlagsBits.Administrator)) {
         const channel = message.guild.channels.cache.get(CONFIG.ticketSetupRoom);
         if (channel) {
@@ -93,20 +89,19 @@ client.on('messageCreate', async (message) => {
                 new ButtonBuilder()
                     .setCustomId('create_ticket_btn')
                     .setLabel('فك تكت')
-                    .setStyle(ButtonStyle.Primary)
+                    .setStyle(ButtonStyle.Secondary)
             );
             await channel.send({
-                content: "اذا خاطرك بالمخفي بس ما معك بوست او عندك اي مشكله اضغط تحت",
+                content: "سوي رومك مع من تحب يصير إذا واجهت أي مشكلة أو تبي المخفي بدون بوست فك تكت من الزر اللي تحت",
                 components: [row]
             });
             await message.reply("تم إرسال زر التكت بنجاح!");
         }
     }
 
-    // 2. أوامر الإدارة (قفل، فتح، مسح، send، bc)
+    // أوامر الإدارة (قفل، فتح، مسح)
     if (message.content.startsWith("قفل")) {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageChannels)) return;
-        await message.channel.messages.fetch({ limit: 100 }).then(msgs => message.channel.bulkDelete(msgs, true));
         await message.channel.permissionOverwrites.edit(message.guild.id, { SendMessages: false, AddReactions: false });
         return;
     }
@@ -133,7 +128,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر send (بدون /)
+    // أمر send لإرسال الكلام والصور بشكل طبيعي تماماً
     if (message.content.startsWith("send")) {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return;
         const textToSend = message.content.slice(4).trim();
@@ -144,7 +139,7 @@ client.on('messageCreate', async (message) => {
         if (textToSend || attachments.length > 0) {
             await message.channel.send({
                 content: textToSend || undefined,
-                files: attachments.map(att => att.url)
+                files: attachments
             });
         }
         return;
@@ -164,7 +159,7 @@ client.on('messageCreate', async (message) => {
             try {
                 await member.send({
                     content: broadcastContent || undefined,
-                    files: attachments.map(att => att.url)
+                    files: attachments
                 });
                 successCount++;
             } catch (err) {}
@@ -174,56 +169,22 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // نظام إدارة التكتات الداخلية (إغلاق، فتح، delete)
-    if (message.channel.parentId === CONFIG.archiveCategory || message.channel.name.startsWith("ticket-") || message.channel.name.startsWith("delete-")) {
-        const channelName = message.channel.name;
-
+    // نظام حذف التكت السريع برول السبورت عند كتابة "إغلاق"
+    if (message.channel.name.startsWith("ticket-")) {
         if (message.content === "إغلاق") {
-            if (message.channel.parentId === CONFIG.ticketCategory1 || message.channel.parentId === CONFIG.ticketCategory2) {
-                const originalUserTag = channelName.replace("ticket-", "");
-                await message.channel.setParent(CONFIG.archiveCategory);
-                await message.channel.setName(`delete-${originalUserTag}`);
-                await message.channel.permissionOverwrites.set([
-                    { id: message.guild.id, Deny: [PermissionFlagsBits.ViewChannel] },
-                    { id: CONFIG.supportRole, Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
-                ]);
-                await message.reply("تم إغلاق التكت مؤقتاً ونقله للأرشيف.");
-            }
-        }
-
-        if (message.content === "فتح") {
-            if (message.channel.parentId === CONFIG.archiveCategory) {
-                const originalUserTag = channelName.replace("delete-", "");
-                const member = message.guild.members.cache.find(m => m.user.username.toLowerCase() === originalUserTag.toLowerCase() || m.id === originalUserTag);
-                
-                const cat1 = message.guild.channels.cache.get(CONFIG.ticketCategory1);
-                // استخدام .cache.size أو الطريقة الآمنة لفحص عدد الرومات
-                const targetCat = (cat1 && cat1.children.cache.size < 50) ? CONFIG.ticketCategory1 : CONFIG.ticketCategory2;
-
-                await message.channel.setParent(targetCat);
-                await message.channel.setName(`ticket-${originalUserTag}`);
-                
-                if (member) {
-                    await message.channel.permissionOverwrites.set([
-                        { id: message.guild.id, Deny: [PermissionFlagsBits.ViewChannel] },
-                        { id: member.id, Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-                        { id: CONFIG.supportRole, Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
-                    ]);
+            if (message.member.roles.cache.has(CONFIG.supportRole) || message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                try {
+                    await message.channel.delete();
+                } catch (err) {
+                    console.error("Error deleting ticket channel:", err);
                 }
-                await message.channel.send("كأن التكت جديد، تم إعادة فتحه وتفعيل الصلاحيات.");
-            }
-        }
-
-        if (message.content === "delete") {
-            if (message.member.roles.cache.has(CONFIG.adminControlRole)) {
-                await message.channel.send("جاري حذف الروم نهائياً...");
-                setTimeout(() => message.channel.delete(), 3000);
+                return;
             }
         }
     }
 });
 
-// التفاعل مع الأزرار
+// التفاعل مع الأزرار وإنشاء التكتات بالمنطق المطلوب
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
@@ -244,6 +205,7 @@ client.on('interactionCreate', async (interaction) => {
         const guild = interaction.guild;
         const user = interaction.user;
 
+        // فحص الكاتيغوري الأول (إذا أقل من 50 روم ينشئ فيه، وإذا وصل 50 ينقل للثاني)
         const cat1 = guild.channels.cache.get(CONFIG.ticketCategory1);
         let chosenCategory = CONFIG.ticketCategory1;
 
