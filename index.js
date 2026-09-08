@@ -17,6 +17,7 @@ const {
     ActionRowBuilder, 
     ButtonBuilder, 
     ButtonStyle, 
+    EmbedBuilder, 
     PermissionFlagsBits 
 } = require('discord.js');
 
@@ -34,22 +35,23 @@ const client = new Client({
 // الأيدي والآداب المطلوبة
 const CONFIG = {
     verificationRoom: "1545846837192429578",
-    verifiedRole: "1545848708921425920", // الرول الذي يوضع بعد التفعيل
-    unverifiedRole: "1545848907156820100", // الرول التلقائي عند دخول السيرفر
+    verifiedRole: "1545848708921425920", 
+    unverifiedRole: "1545848907156820100", 
     
     ticketSetupRoom: "1545847197768360000",
-    ticketCategory1: "1545852986188628108", // الكاتيغوري الأول (أقصى حد 50 روم)
-    ticketCategory2: "1545853004673196172", // الكاتيغوري الثاني لو امتلى الأول
+    ticketCategory1: "1545852986188628108", 
+    ticketCategory2: "1545853004673196172", 
     
-    supportRole: "1545853407825231962", // رول السبورت (يحذف التكت بكلمة إغلاق فوراً)
-    adminControlRole: "1545853891101466746" // رول التحكم الكامل
+    supportRole: "1545853407825231962", // رول السبورت
+    adminControlRole: "1545853891101466746", // رول الإدارة الكاملة
+    
+    roleRequestRoom: "1546928048174014566" // روم طلبات الرولات الجديد
 };
 
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
-// 1. منح الرول التلقائي عند دخول السيرفر
 client.on('guildMemberAdd', async (member) => {
     try {
         if (CONFIG.unverifiedRole) {
@@ -63,58 +65,61 @@ client.on('guildMemberAdd', async (member) => {
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
-    // أمر إرسال رسالة التحقق والتفعيل
-    if (message.content === "!setup_verify" && message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    // التحقق من الصلاحيات العامة (فقط الإدارة تقدر تسوي إعدادات أو قفل/فتح/مسح/bc)
+    const isAdmin = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
+    const isSupport = message.member.roles.cache.has(CONFIG.supportRole) || isAdmin;
+
+    // أمر إرسال رسالة التحقق والتفعيل (خلفية سوداء عبر Embed بدون عنوان)
+    if (message.content === "!setup_verify" && isAdmin) {
         const channel = message.guild.channels.cache.get(CONFIG.verificationRoom);
         if (channel) {
+            const embed = new EmbedBuilder()
+                .setDescription("تنويه حنا مجرد سيرفر للفضايح ولا نمس للابتزاز بآي صلة")
+                .setColor(0x2f3136); // لون داكن ليعطي مظهر الخلفية السوداء
+
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId('verify_btn')
                     .setLabel('تفعيل')
                     .setStyle(ButtonStyle.Secondary)
             );
-            await channel.send({
-                content: "تنويه حنا مجرد سيرفر للفضايح ولا نمس للابتزاز بآي صلة",
-                components: [row]
-            });
+            await channel.send({ embeds: [embed], components: [row] });
             await message.reply("تم إرسال رسالة التفعيل بنجاح!");
         }
     }
 
-    // أمر إرسال زر فتح التكت بالصيغة المطلوبة والزر الرمادي
-    if (message.content === "!setup_ticket" && message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    // أمر إرسال زر التكت بالخلفية السوداء المطلوبة (Embed بدون عنوان)
+    if (message.content === "!setup_ticket" && isAdmin) {
         const channel = message.guild.channels.cache.get(CONFIG.ticketSetupRoom);
         if (channel) {
+            const embed = new EmbedBuilder()
+                .setDescription("سوي رومك مع من تحب يصير إذا واجهت أي مشكلة أو تبي المخفي بدون بوست فك تكت من الزر اللي تحت")
+                .setColor(0x2f3136);
+
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId('create_ticket_btn')
                     .setLabel('فك تكت')
                     .setStyle(ButtonStyle.Secondary)
             );
-            await channel.send({
-                content: "سوي رومك مع من تحب يصير إذا واجهت أي مشكلة أو تبي المخفي بدون بوست فك تكت من الزر اللي تحت",
-                components: [row]
-            });
+            await channel.send({ embeds: [embed], components: [row] });
             await message.reply("تم إرسال زر التكت بنجاح!");
         }
     }
 
-    // أوامر الإدارة (قفل، فتح، مسح)
-    if (message.content.startsWith("قفل")) {
-        if (!message.member.permissions.has(PermissionFlagsBits.ManageChannels)) return;
+    // أوامر الإدارة العامة (قفل، فتح، مسح، bc) - مخصصة للإدارة فقط
+    if (message.content.startsWith("قفل") && isAdmin) {
         await message.channel.permissionOverwrites.edit(message.guild.id, { SendMessages: false, AddReactions: false });
         return;
     }
 
-    if (message.content.startsWith("فتح")) {
-        if (!message.member.permissions.has(PermissionFlagsBits.ManageChannels)) return;
+    if (message.content.startsWith("فتح") && isAdmin) {
         try { await message.delete(); } catch(e) {}
         await message.channel.permissionOverwrites.edit(message.guild.id, { SendMessages: null, AddReactions: null });
         return;
     }
 
-    if (message.content.startsWith("مسح")) {
-        if (!message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return;
+    if (message.content.startsWith("مسح") && isAdmin) {
         const args = message.content.split(" ");
         const count = parseInt(args[1]);
         try { await message.delete(); } catch(e) {}
@@ -128,9 +133,8 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر send لإرسال الكلام والصور بشكل طبيعي تماماً
-    if (message.content.startsWith("send")) {
-        if (!message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return;
+    // أمر send (متاح للسبورت والإدارة فقط)
+    if (message.content.startsWith("send") && isSupport) {
         const textToSend = message.content.slice(4).trim();
         const attachments = Array.from(message.attachments.values());
         
@@ -145,9 +149,8 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر البث العام (bc)
-    if (message.content.startsWith("bc")) {
-        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
+    // أمر البث العام (bc) - للإدارة فقط
+    if (message.content.startsWith("bc") && isAdmin) {
         const broadcastContent = message.content.slice(2).trim();
         const attachments = Array.from(message.attachments.values());
         
@@ -169,22 +172,71 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // نظام حذف التكت السريع برول السبورت عند كتابة "إغلاق"
+    // نظام طلب إعطاء الرولات (رول [منشن] [اسم الرول])
+    if (message.content.startsWith("رول") && isSupport) {
+        const args = message.content.split(" ");
+        const targetMember = message.mentions.members.first();
+        
+        if (!targetMember) {
+            return message.reply("يرجى منشن الشخص المراد إعطاؤه الرول بشكل صحيح.");
+        }
+
+        // استخراج اسم الرول (كل ما بعد المنشن)
+        const roleQuery = message.content.replace("رول", "").replace(/<@!?\d+>/g, "").trim();
+        
+        if (!roleQuery) {
+            return message.reply("يرجى كتابة اسم الرول أو أول حرفين منه.");
+        }
+
+        // البحث عن الرول في السيرفر (يطابق الاسم أو يبدأ به)
+        const foundRole = message.guild.roles.cache.find(r => r.name.toLowerCase().includes(roleQuery.toLowerCase()));
+
+        if (!foundRole) {
+            return message.reply(`لم يتم العثور على رول مطابق لـ "${roleQuery}".`);
+        }
+
+        // الرد على رسالة المستخدم بطلب كتابة الدليل لحالها أولاً
+        await message.reply("اكتب رسالتك اكتب رسالتك مع دليلك لحالها.");
+
+        // إرسال الطلب إلى الروم المخصص للطلبات (1546928048174014566)
+        const requestChannel = message.guild.channels.cache.get(CONFIG.roleRequestRoom);
+        if (requestChannel) {
+            const attachments = Array.from(message.attachments.values());
+            
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`approve_role_${targetMember.id}_${foundRole.id}`)
+                    .setLabel('صح')
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId(`deny_role_${targetMember.id}`)
+                    .setLabel('خطأ')
+                    .setStyle(ButtonStyle.Danger)
+            );
+
+            await requestChannel.send({
+                content: `طلب إعطاء رول (${foundRole.name}) للعضو: ${targetMember}\nبواسطة: ${message.author}`,
+                files: attachments,
+                components: [row]
+            });
+        }
+        return;
+    }
+
+    // نظام حذف التكت السريع (أقل من ثانية) - مخصص للسبورت فقط عند كتابة "إغلاق" داخل التكت
     if (message.channel.name.startsWith("ticket-")) {
-        if (message.content === "إغلاق") {
-            if (message.member.roles.cache.has(CONFIG.supportRole) || message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-                try {
-                    await message.channel.delete();
-                } catch (err) {
-                    console.error("Error deleting ticket channel:", err);
-                }
-                return;
+        if (message.content === "إغلاق" && isSupport) {
+            try {
+                await message.channel.delete();
+            } catch (err) {
+                console.error("Error deleting ticket channel:", err);
             }
+            return;
         }
     }
 });
 
-// التفاعل مع الأزرار وإنشاء التكتات بالمنطق المطلوب
+// التفاعل مع الأزرار
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
@@ -205,7 +257,6 @@ client.on('interactionCreate', async (interaction) => {
         const guild = interaction.guild;
         const user = interaction.user;
 
-        // فحص الكاتيغوري الأول (إذا أقل من 50 روم ينشئ فيه، وإذا وصل 50 ينقل للثاني)
         const cat1 = guild.channels.cache.get(CONFIG.ticketCategory1);
         let chosenCategory = CONFIG.ticketCategory1;
 
@@ -216,7 +267,7 @@ client.on('interactionCreate', async (interaction) => {
         try {
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${user.username}`,
-                type: 0, // Guild Text
+                type: 0, 
                 parent: chosenCategory,
                 permissionOverwrites: [
                     {
@@ -242,6 +293,29 @@ client.on('interactionCreate', async (interaction) => {
         } catch (err) {
             console.error(err);
             await interaction.reply({ content: "حدث خطأ أثناء إنشاء التكت.", ephemeral: true });
+        }
+    }
+
+    // أزرار قبول أو رفض طلب الرول
+    if (interaction.customId.startsWith('approve_role_') || interaction.customId.startsWith('deny_role_')) {
+        const isApprove = interaction.customId.startsWith('approve_role_');
+        const parts = interaction.customId.split('_');
+        const targetUserId = parts[2];
+        const roleId = parts[3];
+
+        const member = await interaction.guild.members.fetch(targetUserId).catch(() => null);
+
+        if (isApprove && member && roleId) {
+            try {
+                await member.roles.add(roleId);
+                await interaction.update({ content: `تم إعطاء الرول بنجاح إلى ${member}`, components: [] });
+            } catch (err) {
+                await interaction.reply({ content: "حدث خطأ أثناء منح الرول للمستخدم.", ephemeral: true });
+            }
+        } else if (!isApprove) {
+            await interaction.update({ content: "لم يتم إعطاء الشخص المحدد الرول.", components: [] });
+        } else {
+            await interaction.reply({ content: "لم يتم العثور على العضو.", ephemeral: true });
         }
     }
 });
