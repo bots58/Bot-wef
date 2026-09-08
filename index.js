@@ -18,8 +18,7 @@ const {
     ButtonBuilder, 
     ButtonStyle, 
     EmbedBuilder, 
-    PermissionFlagsBits,
-    AttachmentBuilder
+    PermissionFlagsBits 
 } = require('discord.js');
 
 const client = new Client({
@@ -44,7 +43,7 @@ const CONFIG = {
     ticketCategory2: "1545853004673196172", 
     
     supportRole: "1545853407825231962", // رول السبورت
-    adminControlRole: "1545853891101466746", // رول الإدارة
+    adminControlRole: "1545853891101466746", // رول الإدارة المخصص
     
     roleRequestRoom: "1546928048174014566", // روم طلبات الرولات
     supportLogRoom: "1546933674673447042" // روم تنبيه السبورت ودليلهم
@@ -68,27 +67,30 @@ client.on('guildMemberAdd', async (member) => {
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
-    // دالة التحقق من الصلاحيات بناءً على الرول أو الآدمن
+    // التحقق من صلاحيات الإدارة والسبورت بدقة باستخدام الرولات المحددة والآدمن
     const hasAdminRole = message.member.roles.cache.has(CONFIG.adminControlRole) || message.member.permissions.has(PermissionFlagsBits.Administrator);
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
 
-    // 1. أمر إرسال رسالة التفعيل
+    // 1. أمر إرسال رسالة التفعيل في الروم المخصص حصراً: 1545846837192429578
     if (message.content.trim() === "!setup_verify" && hasAdminRole) {
-        const channel = message.guild.channels.cache.get(CONFIG.verificationRoom);
-        if (channel) {
-            const embed = new EmbedBuilder()
-                .setDescription("للتنوية حنا سيرفر فضايح ولا نمس للابتزاز باي صلة")
-                .setColor(0x2f3136);
-
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('verify_btn')
-                    .setLabel('تفعيل')
-                    .setStyle(ButtonStyle.Secondary)
-            );
-            await channel.send({ embeds: [embed], components: [row] });
-            await message.reply("تم إرسال رسالة التفعيل بنجاح!");
+        if (message.channel.id !== CONFIG.verificationRoom) {
+            await message.reply(`هذا الأمر مخصص فقط للروم المحدد <#${CONFIG.verificationRoom}>`);
+            return;
         }
+        
+        const embed = new EmbedBuilder()
+            .setDescription("للتنوية حنا سيرفر فضايح ولا نمس للابتزاز باي صلة")
+            .setColor(0x2f3136);
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('verify_btn')
+                .setLabel('تفعيل')
+                .setStyle(ButtonStyle.Secondary)
+        );
+        
+        await message.channel.send({ embeds: [embed], components: [row] });
+        try { await message.delete(); } catch(e) {}
         return;
     }
 
@@ -112,11 +114,11 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // 3. أمر إخفاء الروم عن غير المفعّلين
+    // 3. أمر "إخفاء" في أي روم لإخفائه عن رول غير مفعل (1545848907156820100) حصراً للرول المخصص
     if (message.content.trim() === "إخفاء" && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         await message.channel.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: false });
-        await message.channel.send("تم إخفاء هذا الروم عن غير المفعّلين.");
+        await message.channel.send("تم إخفاء هذا الروم عن رول غير مفعل.");
         return;
     }
 
@@ -146,17 +148,17 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // 4. أمر send المصحح تماماً لإرسال الصور والكلام بدون أخطاء ملفات (0 bytes)
+    // 4. أمر send المعالج جذرياً لإرسال الصور بشكل طبيعي وصحيح بدون أخطاء ملفات
     if (message.content.startsWith("send") && hasSupportRole) {
         const textToSend = message.content.slice(4).trim();
-        const attachments = message.attachments.map(att => new AttachmentBuilder(att.url));
-        
+        const filesToSend = Array.from(message.attachments.values());
+
         try { await message.delete(); } catch(e) {}
 
-        if (textToSend || attachments.length > 0) {
+        if (textToSend || filesToSend.length > 0) {
             await message.channel.send({
                 content: textToSend || undefined,
-                files: attachments
+                files: filesToSend
             });
         }
         return;
@@ -165,7 +167,7 @@ client.on('messageCreate', async (message) => {
     // أمر البث العام (bc)
     if (message.content.startsWith("bc") && hasAdminRole) {
         const broadcastContent = message.content.slice(2).trim();
-        const attachments = message.attachments.map(att => new AttachmentBuilder(att.url));
+        const filesToSend = Array.from(message.attachments.values());
         
         const members = await message.guild.members.fetch();
         let successCount = 0;
@@ -175,7 +177,7 @@ client.on('messageCreate', async (message) => {
             try {
                 await member.send({
                     content: broadcastContent || undefined,
-                    files: attachments
+                    files: filesToSend
                 });
                 successCount++;
             } catch (err) {}
@@ -185,7 +187,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // 5. نظام طلبات الرولات (رول [منشن] [اسم الرول])
+    // 5. نظام طلبات الرولات
     if (message.content.startsWith("رول") && hasSupportRole) {
         const targetMember = message.mentions.members.first();
         if (!targetMember) return;
@@ -196,7 +198,6 @@ client.on('messageCreate', async (message) => {
         const foundRole = message.guild.roles.cache.find(r => r.name.toLowerCase().includes(roleQuery.toLowerCase()));
         if (!foundRole) return;
 
-        // إرسال تنبيه في روم التنبيهات وحذف رسالة البوت بعد 15 ثانية
         const logRoom = message.guild.channels.cache.get(CONFIG.supportLogRoom);
         if (logRoom) {
             const warningMsg = await logRoom.send(`${targetMember} اكتب دليلك`);
@@ -205,10 +206,9 @@ client.on('messageCreate', async (message) => {
             }, 15000);
         }
 
-        // إرسال الطلب لروم القبول والرفض مع جلب الصور بشكل صحيح ومضمون
         const requestChannel = message.guild.channels.cache.get(CONFIG.roleRequestRoom);
         if (requestChannel) {
-            const attachments = message.attachments.map(att => new AttachmentBuilder(att.url));
+            const filesToSend = Array.from(message.attachments.values());
             
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
@@ -223,14 +223,14 @@ client.on('messageCreate', async (message) => {
 
             await requestChannel.send({
                 content: `طلب إعطاء رول (${foundRole.name}) للعضو: ${targetMember}\nبواسطة: ${message.author}`,
-                files: attachments,
+                files: filesToSend,
                 components: [row]
             });
         }
         return;
     }
 
-    // 6. أمر الإغلاق السريع للتكتات
+    // 6. إغلاق التكتات
     if (message.channel.name.startsWith("ticket-")) {
         if (message.content.trim() === "إغلاق" && hasSupportRole) {
             try {
@@ -243,7 +243,7 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// التعامل مع الأزرار
+// التفاعل مع الأزرار
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
