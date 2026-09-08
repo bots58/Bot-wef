@@ -18,7 +18,8 @@ const {
     ButtonBuilder, 
     ButtonStyle, 
     EmbedBuilder, 
-    PermissionFlagsBits 
+    PermissionFlagsBits,
+    AttachmentBuilder
 } = require('discord.js');
 
 const client = new Client({
@@ -32,7 +33,7 @@ const client = new Client({
     partials: [Partials.Channel, Partials.Message, Partials.GuildMember]
 });
 
-// الأيدي والآداب المطلوبة
+// الأيدي المطلوبة بدقة
 const CONFIG = {
     verificationRoom: "1545846837192429578",
     verifiedRole: "1545848708921425920", // رول التفعيل
@@ -53,7 +54,7 @@ client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
-// منح رول "غير مفعل" لأي عضو جديد يدخل السيرفر، وإخفاء روم التفعيل عنه إلا إذا كان مخصصاً
+// إعطاء رول "غير مفعل" تلقائياً لأي عضو جديد يدخل السيرفر
 client.on('guildMemberAdd', async (member) => {
     try {
         if (CONFIG.unverifiedRole) {
@@ -67,11 +68,12 @@ client.on('guildMemberAdd', async (member) => {
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
-    const isAdmin = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
-    const isSupport = message.member.roles.cache.has(CONFIG.supportRole) || isAdmin;
+    // دالة التحقق من الصلاحيات بناءً على الرول أو الآدمن
+    const hasAdminRole = message.member.roles.cache.has(CONFIG.adminControlRole) || message.member.permissions.has(PermissionFlagsBits.Administrator);
+    const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
 
-    // 1. أمر إرسال رسالة التفعيل بالخلفية السوداء والزر الرمادي
-    if (message.content === "!setup_verify" && isAdmin) {
+    // 1. أمر إرسال رسالة التفعيل
+    if (message.content.trim() === "!setup_verify" && hasAdminRole) {
         const channel = message.guild.channels.cache.get(CONFIG.verificationRoom);
         if (channel) {
             const embed = new EmbedBuilder()
@@ -87,10 +89,11 @@ client.on('messageCreate', async (message) => {
             await channel.send({ embeds: [embed], components: [row] });
             await message.reply("تم إرسال رسالة التفعيل بنجاح!");
         }
+        return;
     }
 
-    // 2. أمر إرسال رسالة التكت بالشكل المطلوب
-    if (message.content === "!setup_ticket" && isAdmin) {
+    // 2. أمر إرسال رسالة التكت
+    if (message.content.trim() === "!setup_ticket" && hasAdminRole) {
         const channel = message.guild.channels.cache.get(CONFIG.ticketSetupRoom);
         if (channel) {
             const embed = new EmbedBuilder()
@@ -106,10 +109,11 @@ client.on('messageCreate', async (message) => {
             await channel.send({ embeds: [embed], components: [row] });
             await message.reply("تم إرسال زر التكت بنجاح!");
         }
+        return;
     }
 
-    // 3. أمر "إخفاء" (مخصص للإدارة فقط) لإخفاء الروم عن رول "غير مفعل"
-    if (message.content.trim() === "إخفاء" && isAdmin) {
+    // 3. أمر إخفاء الروم عن غير المفعّلين
+    if (message.content.trim() === "إخفاء" && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         await message.channel.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: false });
         await message.channel.send("تم إخفاء هذا الروم عن غير المفعّلين.");
@@ -117,18 +121,18 @@ client.on('messageCreate', async (message) => {
     }
 
     // أوامر الإدارة العامة
-    if (message.content.startsWith("قفل") && isAdmin) {
+    if (message.content.startsWith("قفل") && hasAdminRole) {
         await message.channel.permissionOverwrites.edit(message.guild.id, { SendMessages: false, AddReactions: false });
         return;
     }
 
-    if (message.content.startsWith("فتح") && isAdmin) {
+    if (message.content.startsWith("فتح") && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         await message.channel.permissionOverwrites.edit(message.guild.id, { SendMessages: null, AddReactions: null });
         return;
     }
 
-    if (message.content.startsWith("مسح") && isAdmin) {
+    if (message.content.startsWith("مسح") && hasAdminRole) {
         const args = message.content.split(" ");
         const count = parseInt(args[1]);
         try { await message.delete(); } catch(e) {}
@@ -142,10 +146,10 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر send (متاح للسبورت والإدارة)
-    if (message.content.startsWith("send") && isSupport) {
+    // 4. أمر send المصحح تماماً لإرسال الصور والكلام بدون أخطاء ملفات (0 bytes)
+    if (message.content.startsWith("send") && hasSupportRole) {
         const textToSend = message.content.slice(4).trim();
-        const attachments = Array.from(message.attachments.values());
+        const attachments = message.attachments.map(att => new AttachmentBuilder(att.url));
         
         try { await message.delete(); } catch(e) {}
 
@@ -159,9 +163,9 @@ client.on('messageCreate', async (message) => {
     }
 
     // أمر البث العام (bc)
-    if (message.content.startsWith("bc") && isAdmin) {
+    if (message.content.startsWith("bc") && hasAdminRole) {
         const broadcastContent = message.content.slice(2).trim();
-        const attachments = Array.from(message.attachments.values());
+        const attachments = message.attachments.map(att => new AttachmentBuilder(att.url));
         
         const members = await message.guild.members.fetch();
         let successCount = 0;
@@ -181,8 +185,8 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // 4. نظام طلبات الرولات (متاح للسبورت والإدارة)
-    if (message.content.startsWith("رول") && isSupport) {
+    // 5. نظام طلبات الرولات (رول [منشن] [اسم الرول])
+    if (message.content.startsWith("رول") && hasSupportRole) {
         const targetMember = message.mentions.members.first();
         if (!targetMember) return;
 
@@ -192,7 +196,7 @@ client.on('messageCreate', async (message) => {
         const foundRole = message.guild.roles.cache.find(r => r.name.toLowerCase().includes(roleQuery.toLowerCase()));
         if (!foundRole) return;
 
-        // إرسال تنبيه في روم التنبيهات (1546933674673447042) وحذف رسالة البوت بعد 15 ثانية
+        // إرسال تنبيه في روم التنبيهات وحذف رسالة البوت بعد 15 ثانية
         const logRoom = message.guild.channels.cache.get(CONFIG.supportLogRoom);
         if (logRoom) {
             const warningMsg = await logRoom.send(`${targetMember} اكتب دليلك`);
@@ -201,10 +205,10 @@ client.on('messageCreate', async (message) => {
             }, 15000);
         }
 
-        // إرسال الطلب إلى روم القبول والرفض (1546928048174014566)
+        // إرسال الطلب لروم القبول والرفض مع جلب الصور بشكل صحيح ومضمون
         const requestChannel = message.guild.channels.cache.get(CONFIG.roleRequestRoom);
         if (requestChannel) {
-            const attachments = Array.from(message.attachments.values());
+            const attachments = message.attachments.map(att => new AttachmentBuilder(att.url));
             
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
@@ -226,9 +230,9 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // 5. إغلاق التكتات للسبورت والإدارة
+    // 6. أمر الإغلاق السريع للتكتات
     if (message.channel.name.startsWith("ticket-")) {
-        if (message.content === "إغلاق" && isSupport) {
+        if (message.content.trim() === "إغلاق" && hasSupportRole) {
             try {
                 await message.channel.delete();
             } catch (err) {
@@ -239,27 +243,26 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// التفاعل مع الأزرار
+// التعامل مع الأزرار
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
-    // زر التفعيل: منح رول التفعيل، سحب رول غير مفعل، وإخفاء روم التفعيل عن العضو
+    // زر التفعيل
     if (interaction.customId === 'verify_btn') {
         const member = interaction.member;
         try {
             if (CONFIG.verifiedRole) await member.roles.add(CONFIG.verifiedRole);
             if (CONFIG.unverifiedRole) await member.roles.remove(CONFIG.unverifiedRole);
             
-            // إخفاء روم التفعيل عنه عبر Overwrite خاص للعضو
             await interaction.channel.permissionOverwrites.edit(member.id, { ViewChannel: false });
-
             await interaction.reply({ content: "تم إعطائك الرول وتفعيلك بنجاح!", ephemeral: true });
         } catch (err) {
             await interaction.reply({ content: "حدث خطأ أثناء منح الرول.", ephemeral: true });
         }
+        return;
     }
 
-    // زر إنشاء التكت
+    // زر التكت
     if (interaction.customId === 'create_ticket_btn') {
         const guild = interaction.guild;
         const user = interaction.user;
@@ -301,9 +304,10 @@ client.on('interactionCreate', async (interaction) => {
             console.error(err);
             await interaction.reply({ content: "حدث خطأ أثناء إنشاء التكت.", ephemeral: true });
         }
+        return;
     }
 
-    // قبول أو رفض طلبات الرولات وإعطائها للعضو المستهدف بدقة
+    // قبول أو رفض طلبات الرولات
     if (interaction.customId.startsWith('approve_role_') || interaction.customId.startsWith('deny_role_')) {
         const isApprove = interaction.customId.startsWith('approve_role_');
         const parts = interaction.customId.split('_');
@@ -324,6 +328,7 @@ client.on('interactionCreate', async (interaction) => {
         } else {
             await interaction.reply({ content: "لم يتم العثور على العضو.", ephemeral: true });
         }
+        return;
     }
 });
 
