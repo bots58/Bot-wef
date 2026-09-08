@@ -67,7 +67,7 @@ client.on('guildMemberAdd', async (member) => {
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
-    // أمر إرسال رسالة التحقق والتفعيل (يمكن إرساله يدوياً أو برمجياً)
+    // أمر إرسال رسالة التحقق والتفعيل
     if (message.content === "!setup_verify" && message.member.permissions.has(PermissionFlagsBits.Administrator)) {
         const channel = message.guild.channels.cache.get(CONFIG.verificationRoom);
         if (channel) {
@@ -133,10 +133,10 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر /send (يكتب البوت الكلام أو يرسل الصور/الفيديوهات بدلاً عنك ويحذف رسالتك)
-    if (message.content.startsWith("/send")) {
+    // أمر send (بدون /)
+    if (message.content.startsWith("send")) {
         if (!message.member.permissions.has(PermissionFlagsBits.ManageMessages)) return;
-        const textToSend = message.content.slice(5).trim();
+        const textToSend = message.content.slice(4).trim();
         const attachments = Array.from(message.attachments.values());
         
         try { await message.delete(); } catch(e) {}
@@ -167,9 +167,7 @@ client.on('messageCreate', async (message) => {
                     files: attachments.map(att => att.url)
                 });
                 successCount++;
-            } catch (err) {
-                // قد تكون رسائل الخاص مغلقة لدى العضو
-            }
+            } catch (err) {}
         }
 
         await message.reply(`تم الإرسال إلى جميع الناس الذي بالسيرفر (${successCount})`);
@@ -181,12 +179,10 @@ client.on('messageCreate', async (message) => {
         const channelName = message.channel.name;
 
         if (message.content === "إغلاق") {
-            // إذا كان في روم تكت عادي وانكتب إغلاق ينقل للأرشيف المؤقت
             if (message.channel.parentId === CONFIG.ticketCategory1 || message.channel.parentId === CONFIG.ticketCategory2) {
                 const originalUserTag = channelName.replace("ticket-", "");
                 await message.channel.setParent(CONFIG.archiveCategory);
                 await message.channel.setName(`delete-${originalUserTag}`);
-                // إخفاء عن العضو العادي وبقاء السبورت
                 await message.channel.permissionOverwrites.set([
                     { id: message.guild.id, Deny: [PermissionFlagsBits.ViewChannel] },
                     { id: CONFIG.supportRole, Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
@@ -196,13 +192,12 @@ client.on('messageCreate', async (message) => {
         }
 
         if (message.content === "فتح") {
-            // إذا كان في قسم الأرشيف (delete-) وانكتب فتح، يرجع تكت جديد طبيعي
             if (message.channel.parentId === CONFIG.archiveCategory) {
                 const originalUserTag = channelName.replace("delete-", "");
-                // البحث عن العضو الأصلي
                 const member = message.guild.members.cache.find(m => m.user.username.toLowerCase() === originalUserTag.toLowerCase() || m.id === originalUserTag);
                 
                 const cat1 = message.guild.channels.cache.get(CONFIG.ticketCategory1);
+                // استخدام .cache.size أو الطريقة الآمنة لفحص عدد الرومات
                 const targetCat = (cat1 && cat1.children.cache.size < 50) ? CONFIG.ticketCategory1 : CONFIG.ticketCategory2;
 
                 await message.channel.setParent(targetCat);
@@ -220,7 +215,6 @@ client.on('messageCreate', async (message) => {
         }
 
         if (message.content === "delete") {
-            // إذا كتبه صاحب رول التحكم الكامل
             if (message.member.roles.cache.has(CONFIG.adminControlRole)) {
                 await message.channel.send("جاري حذف الروم نهائياً...");
                 setTimeout(() => message.channel.delete(), 3000);
@@ -230,8 +224,6 @@ client.on('messageCreate', async (message) => {
 });
 
 // التفاعل مع الأزرار
-const activeTickets = new Map();
-
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
@@ -252,7 +244,6 @@ client.on('interactionCreate', async (interaction) => {
         const guild = interaction.guild;
         const user = interaction.user;
 
-        // التحقق من نظام الكاتيغوري (الامتلاء لـ 50 روم)
         const cat1 = guild.channels.cache.get(CONFIG.ticketCategory1);
         let chosenCategory = CONFIG.ticketCategory1;
 
