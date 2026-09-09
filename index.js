@@ -95,7 +95,6 @@ client.on('messageCreate', async (message) => {
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
     const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) || hasAdminRole;
 
-    // شرط إغلاق التكت تلقائياً إذا كان الروم يبدأ بـ ticket- وصاحب الرسالة معه رول ticketSupportPingRole
     if (message.channel.name.startsWith("ticket-") && hasTicketSupportRole) {
         const msgContent = message.content.trim();
         const closeKeywords = ["اغلاق", "إغلاق", "آغلاق", "أغلاق"];
@@ -105,7 +104,7 @@ client.on('messageCreate', async (message) => {
                 try {
                     await message.channel.delete();
                 } catch(e) {}
-            }, 500); // يحذف التكت خلال أقل من ثانية (نصف ثانية)
+            }, 500);
             return;
         }
     }
@@ -147,31 +146,42 @@ client.on('messageCreate', async (message) => {
 
     if (message.reference && hasSupportRole) {
         const content = message.content.trim();
-        if (content.includes("رول") || content.includes("البرايفت") || content.includes("المخفي")) {
+        if (content.length > 0) {
             try {
                 const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
                 const targetMember = await message.guild.members.fetch(repliedMessage.author.id);
                 
-                const targetRole = message.guild.roles.cache.get(CONFIG.supportRole);
-                if (!targetRole) return;
+                const allRoles = message.guild.roles.cache;
+                let foundRole = null;
 
-                const hasRoleAlready = targetMember.roles.cache.has(targetRole.id);
+                for (const role of allRoles.values()) {
+                    if (role.id === message.guild.id) continue;
+                    const roleName = role.name.trim();
+                    if (roleName.startsWith(content) || roleName.toLowerCase().startsWith(content.toLowerCase())) {
+                        foundRole = role;
+                        break;
+                    }
+                }
+
+                if (!foundRole) return;
+
+                const hasRoleAlready = targetMember.roles.cache.has(foundRole.id);
                 const actionType = hasRoleAlready ? 'remove' : 'add';
 
                 const logChannel = message.guild.channels.cache.get(CONFIG.roleRequestRoom);
                 if (logChannel) {
                     const embed = new EmbedBuilder()
                         .setTitle(actionType === 'add' ? "طلب إعطاء رول" : "طلب تل رول")
-                        .setDescription(`المعطا/المسحوب منه: ${targetMember}\nبواسطة السبورت: ${message.author}\nالرول المطلوب: ${targetRole.name}`)
+                        .setDescription(`المعطا/المسحوب منه: ${targetMember}\nبواسطة السبورت: ${message.author}\nالرول المطلوب: ${foundRole.name}`)
                         .setColor(0x2f3136);
 
                     const row = new ActionRowBuilder().addComponents(
                         new ButtonBuilder()
-                            .setCustomId(`role_accept_${targetMember.id}_${targetRole.id}_${actionType}_${message.author.id}`)
+                            .setCustomId(`role_accept_${targetMember.id}_${foundRole.id}_${actionType}_${message.author.id}`)
                             .setLabel('✅')
                             .setStyle(ButtonStyle.Secondary),
                         new ButtonBuilder()
-                            .setCustomId(`role_deny_${targetMember.id}_${targetRole.id}_${actionType}_${message.author.id}`)
+                            .setCustomId(`role_deny_${targetMember.id}_${foundRole.id}_${actionType}_${message.author.id}`)
                             .setLabel('❌')
                             .setStyle(ButtonStyle.Secondary)
                     );
@@ -470,7 +480,7 @@ client.on('interactionCreate', async (interaction) => {
                     .setStyle(ButtonStyle.Secondary),
                 new ButtonBuilder()
                     .setCustomId('summon_admin')
-                    .setLabel('استدعاء الإدارة')
+                    .setLabel('استدعاء الادارة')
                     .setStyle(ButtonStyle.Secondary)
             );
 
@@ -488,7 +498,6 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.customId.startsWith('summon_ticket_')) {
-        const ticketOwnerId = interaction.customId.split('_')[2];
         const member = interaction.member;
 
         if (!member.roles.cache.has(CONFIG.ticketSupportPingRole) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -516,19 +525,12 @@ client.on('interactionCreate', async (interaction) => {
 
         summonCooldowns.set(channelId, now + cooldownTime);
 
-        try {
-            const ticketOwner = await interaction.guild.members.fetch(ticketOwnerId).catch(() => null);
-            if (ticketOwner) {
-                await ticketOwner.send("أبغاك الشخص حاول قبل خمس دقايق في التكت الخاص بك.").catch(() => {});
-            }
-        } catch (e) {}
-
-        await interaction.reply({ content: "تم إرسال تنبيه الاستدعاء بنجاح.", ephemeral: true });
+        await interaction.reply({ content: `شيك على تذكرتك ${interaction.channel}`, ephemeral: true });
         return;
     }
 
     if (interaction.customId === 'summon_admin') {
-        const sentMsg = await interaction.channel.send({ content: `<@&${CONFIG.adminControlRole}>` });
+        const sentMsg = await interaction.channel.send({ content: `<@&${CONFIG.ticketSupportPingRole}> <@&${CONFIG.adminControlRole}>` });
         setTimeout(async () => {
             try { await sentMsg.delete(); } catch(e) {}
         }, 3000);
