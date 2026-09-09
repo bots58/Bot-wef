@@ -35,14 +35,14 @@ const client = new Client({
 // الأيدي المطلوبة بدقة متناهية
 const CONFIG = {
     verificationRoom: "1545846837192429578",
-    verifiedRole: "1545848708921425920", // رول التفعيل الجديد
+    verifiedRole: "1545848708921425920", // رول التفعيل
     unverifiedRole: "1545848907156820100", // رول غير مفعل
     
     ticketSetupRoom: "1545847197768360000",
     ticketCategory1: "1545852986188628108", 
     ticketCategory2: "1545853004673196172", 
     
-    supportRole: "1547161341045776484", // رول السبورت المحدد الجديد
+    supportRole: "1547161341045776484", // رول السبورت
     adminControlRole: "1545853891101466746", // رول الإدارة
     
     roleRequestRoom: "1546928048174014566", // روم طلبات الرولات
@@ -67,12 +67,11 @@ client.on('guildMemberAdd', async (member) => {
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
-    // التحقق من صلاحيات الإدارة والسبورت
     const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
 
-    // 1. أمر إرسال رسالة التفعيل حصراً في الروم المخصص: 1545846837192429578
-    if (message.content.trim() === "!setup_verify" && hasAdminRole) {
+    // 1. أمر التفعيل (ver) في روم التفعيل حصراً: 1545846837192429578
+    if (message.content.trim() === "ver" && hasAdminRole) {
         if (message.channel.id !== CONFIG.verificationRoom) {
             await message.reply(`هذا الأمر مخصص فقط للروم <#${CONFIG.verificationRoom}>`);
             return;
@@ -114,7 +113,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // 3. أمر "إخفاء" لمنع رول غير مفعل (1545848907156820100) من رؤية الروم
+    // 3. أمر "إخفاء" لمنع رول غير مفعل من رؤية الروم
     if (message.content.trim() === "إخفاء" && hasSupportRole) {
         try { await message.delete(); } catch(e) {}
         await message.channel.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: false });
@@ -148,17 +147,16 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // 4. أمر send لإرسال الصور والنصوص بشكل طبيعي
+    // 4. أمر send المعالج جذرياً لإرسال الصور بشكل طبيعي ومرئي دون أخطاء 0 bytes
     if (message.content.startsWith("send") && hasSupportRole) {
         const textToSend = message.content.slice(4).trim();
-        const filesToSend = Array.from(message.attachments.values());
+        const imageUrls = message.attachments.map(att => att.url);
 
         try { await message.delete(); } catch(e) {}
 
-        if (textToSend || filesToSend.length > 0) {
+        if (textToSend || imageUrls.length > 0) {
             await message.channel.send({
-                content: textToSend || undefined,
-                files: filesToSend
+                content: textToSend ? `${textToSend}\n${imageUrls.join('\n')}` : imageUrls.join('\n')
             });
         }
         return;
@@ -167,7 +165,7 @@ client.on('messageCreate', async (message) => {
     // أمر البث العام (bc)
     if (message.content.startsWith("bc") && hasAdminRole) {
         const broadcastContent = message.content.slice(2).trim();
-        const filesToSend = Array.from(message.attachments.values());
+        const imageUrls = message.attachments.map(att => att.url);
         
         const members = await message.guild.members.fetch();
         let successCount = 0;
@@ -176,8 +174,7 @@ client.on('messageCreate', async (message) => {
             if (member.user.bot) continue;
             try {
                 await member.send({
-                    content: broadcastContent || undefined,
-                    files: filesToSend
+                    content: broadcastContent ? `${broadcastContent}\n${imageUrls.join('\n')}` : imageUrls.join('\n')
                 });
                 successCount++;
             } catch (err) {}
@@ -187,7 +184,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // 5. نظام طلبات الرولات مع التحقق من وجود الرول وإرسال رياكشن خطأ أو صح
+    // 5. نظام طلبات الرولات
     if (message.content.startsWith("رول") && hasSupportRole) {
         const targetMember = message.mentions.members.first();
         if (!targetMember) return;
@@ -200,13 +197,11 @@ client.on('messageCreate', async (message) => {
 
         const foundRole = message.guild.roles.cache.find(r => r.name.toLowerCase().includes(roleQuery.toLowerCase()) || r.id === roleQuery.replace(/[<@&>]/g, ""));
         
-        // إذا لم يتم العثور على الرول، يضع البوت رياكشن خطأ ولا يرسل شيئاً
         if (!foundRole) {
             await message.react('❌');
             return;
         }
 
-        // إذا وُجد الرول، يضع رياكشن صح ويسوي الطلب
         await message.react('✅');
 
         const logRoom = message.guild.channels.cache.get(CONFIG.supportLogRoom);
@@ -219,7 +214,7 @@ client.on('messageCreate', async (message) => {
 
         const requestChannel = message.guild.channels.cache.get(CONFIG.roleRequestRoom);
         if (requestChannel) {
-            const filesToSend = Array.from(message.attachments.values());
+            const imageUrls = message.attachments.map(att => att.url);
             
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
@@ -233,15 +228,14 @@ client.on('messageCreate', async (message) => {
             );
 
             await requestChannel.send({
-                content: `طلب إعطاء رول (${foundRole.name}) للعضو: ${targetMember}\nبواسطة: ${message.author}`,
-                files: filesToSend,
+                content: `طلب إعطاء رول (${foundRole.name}) للعضو: ${targetMember}\nبواسطة: ${message.author}\n${imageUrls.join('\n')}`,
                 components: [row]
             });
         }
         return;
     }
 
-    // 6. إغلاق التكتات للسبورت حصراً
+    // 6. إغلاق التكتات فوراً عند كتابة "إغلاق"
     if (message.channel.name.startsWith("ticket-")) {
         if (message.content.trim() === "إغلاق" && hasSupportRole) {
             try {
@@ -254,11 +248,11 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// التعامل مع الأزرار
+// التفاعل مع الأزرار
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
-    // زر التفعيل: سحب رول غير مفعل وإعطاء رول التفعيل الجديد
+    // زر التفعيل
     if (interaction.customId === 'verify_btn') {
         const member = interaction.member;
         try {
@@ -266,7 +260,7 @@ client.on('interactionCreate', async (interaction) => {
             if (CONFIG.verifiedRole) await member.roles.add(CONFIG.verifiedRole);
             
             await interaction.channel.permissionOverwrites.edit(member.id, { ViewChannel: false });
-            await interaction.reply({ content: "تم تفعيلك بنجاح!", ephemeral: true });
+            await interaction.reply({ content: "تم تفعيلك !", ephemeral: true });
         } catch (err) {
             await interaction.reply({ content: "حدث خطأ أثناء منح الرول.", ephemeral: true });
         }
@@ -310,7 +304,7 @@ client.on('interactionCreate', async (interaction) => {
                 content: `<@&${CONFIG.supportRole}> <@&${CONFIG.adminControlRole}>\n\n**اكتب مشكلتك قبل نجي**`
             });
 
-            await interaction.reply({ content: `تم إنشاء التكت بنجاح: ${ticketChannel}`, ephemeral: true });
+            await interaction.reply({ content: `تم فك التكت لك يافحل: ${ticketChannel}`, ephemeral: true });
         } catch (err) {
             console.error(err);
             await interaction.reply({ content: "حدث خطأ أثناء إنشاء التكت.", ephemeral: true });
@@ -330,12 +324,12 @@ client.on('interactionCreate', async (interaction) => {
         if (isApprove && member && roleId) {
             try {
                 await member.roles.add(roleId);
-                await interaction.update({ content: `تم إعطاء الرول للعضو بنجاح (${member}).`, components: [] });
+                await interaction.update({ content: `تم قبول الطلب وإعطاء الرول بنجاح لـ (${member}).`, components: [] });
             } catch (err) {
                 await interaction.reply({ content: "حدث خطأ أثناء منح الرول للمستخدم.", ephemeral: true });
             }
         } else if (!isApprove) {
-            await interaction.update({ content: "لم يتم إعطاء الرول.", components: [] });
+            await interaction.update({ content: "تم رفض الطلب.", components: [] });
         } else {
             await interaction.reply({ content: "لم يتم العثور على العضو.", ephemeral: true });
         }
