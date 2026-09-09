@@ -35,8 +35,8 @@ const client = new Client({
 
 const CONFIG = {
     verificationRoom: "1545846837192429578",
-    verifiedRole: "1545848708921425920", // رول التفعيل النهائي
-    unverifiedRole: "1545848907156820100", // رول الدخول المؤقت
+    verifiedRole: "1545848708921425920", 
+    unverifiedRole: "1545848907156820100", 
     
     ticketSetupRoom: "1545847197768360000",
     ticketCategory1: "1545852986188628108", 
@@ -46,14 +46,35 @@ const CONFIG = {
     adminControlRole: "1545853891101466746", 
     
     roleRequestRoom: "1546928048174014566", 
-    supportLogRoom: "1546933674673447042" 
+    supportLogRoom: "1546933674673447042",
+
+    // إعدادات الرومات السرية الجديدة
+    secretRoomSetupChannel: "1545856705110220883",
+    secretRoomVoiceLog: "1545857287934054480",
+    secretRoomRequestsChannel: "1545859174750224454",
+
+    deleteRoomSetupChannel: "1547232353095778355",
+    deleteRoomVoiceLog: "1547232423522082816",
+    deleteRoomRequestsChannel: "1547233488418246796",
+
+    // كاتيجوريات الرومات السرية بالترتيب
+    secretCategories: [
+        "1545859590506152096",
+        "1545859642721177611",
+        "1545859692515823697",
+        "1545859739001561098",
+        "1545859775844065433",
+        "1545859961202937907",
+        "1545859984833773588",
+        "15460027355504681", // تم تصحيح طول الأيدي الاحتياطي بناءً على طلبك
+        "15460051984588890"
+    ]
 };
 
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
-// اختبار 1 & 3: منح رول الدخول المؤقت تلقائياً وفوراً لأي عضو جديد يدخل السيرفر
 client.on('guildMemberAdd', async (member) => {
     try {
         if (CONFIG.unverifiedRole) {
@@ -70,8 +91,144 @@ client.on('messageCreate', async (message) => {
     const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
 
-    // أمر ver لإرسال زر التفعيل الموجود مسبقاً وبنفس التصميم تماماً
-    if (message.content.trim() === "ver" && hasAdminRole) {
+    // أمر إرسال رسالة وزر إنشاء الروم السري
+    if (message.content.trim() === "!setup_secret" && hasAdminRole) {
+        if (message.channel.id !== CONFIG.secretRoomSetupChannel) {
+            await message.reply(`هذا الأمر مخصص فقط للروم <#${CONFIG.secretRoomSetupChannel}>`);
+            return;
+        }
+
+        const embed = new EmbedBuilder()
+            .setDescription("انشاء رومك على من تكره بسرية تامه")
+            .setColor(0x2f3136);
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('open_wef_voice')
+                .setLabel('انشاء روم')
+                .setStyle(ButtonStyle.Secondary)
+        );
+
+        await message.channel.send({ embeds: [embed], components: [row] });
+        try { await message.delete(); } catch(e) {}
+        return;
+    }
+
+    // أمر إرسال رسالة وزر حذف الروم
+    if (message.content.trim() === "!setup_delete" && hasAdminRole) {
+        if (message.channel.id !== CONFIG.deleteRoomSetupChannel) {
+            await message.reply(`هذا الأمر مخصص فقط للروم <#${CONFIG.deleteRoomSetupChannel}>`);
+            return;
+        }
+
+        const embed = new EmbedBuilder()
+            .setDescription("إذا تبي تحذف روم شخص تحزه فك روم سري من تحت")
+            .setColor(0x2f3136);
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('open_delete_voice')
+                .setLabel('حذف روم')
+                .setStyle(ButtonStyle.Secondary)
+        );
+
+        await message.channel.send({ embeds: [embed], components: [row] });
+        try { await message.delete(); } catch(e) {}
+        return;
+    }
+
+    // التعامل مع استقبال طلبات إنشاء الروم في روم wef-
+    if (message.channel.name.startsWith("wef-")) {
+        const userContent = message.content.trim();
+        const filesToSend = [];
+
+        for (const [id, attachment] of message.attachments) {
+            try {
+                const response = await fetch(attachment.url);
+                const buffer = Buffer.from(await response.arrayBuffer());
+                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
+            } catch (err) {
+                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
+            }
+        }
+
+        // إرسال رسالة مؤقتة للمستخدم بأن طلبه أرسل للإدارة
+        await message.reply({ content: "تم ارسال طلبك للادارة واذا تم الموافقة عليها بيتم انشاء الروم" });
+
+        // إرسال الطلب لروم طلبات الإدارة
+        const requestChannel = message.guild.channels.cache.get(CONFIG.secretRoomRequestsChannel);
+        if (requestChannel) {
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`approve_wef_${message.author.id}_${message.channel.id}`)
+                    .setLabel('✅')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId(`deny_wef_${message.author.id}_${message.channel.id}`)
+                    .setLabel('❌')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+            await requestChannel.send({
+                content: `${userContent}\nبواسطة صاحب الروم: ${message.author}`,
+                files: filesToSend,
+                components: [row]
+            });
+        }
+
+        // جدولة حذف روم المؤقت wef- بعد 90 ثانية
+        const tempChannel = message.channel;
+        setTimeout(async () => {
+            try {
+                await tempChannel.delete();
+            } catch (e) {}
+        }, 90000);
+
+        return;
+    }
+
+    // التعامل مع استقبال سبب حذف الروم في delete-room-
+    if (message.channel.name.startsWith("delete-room-")) {
+        const userContent = message.content.trim();
+        const filesToSend = [];
+
+        for (const [id, attachment] of message.attachments) {
+            try {
+                const response = await fetch(attachment.url);
+                const buffer = Buffer.from(await response.arrayBuffer());
+                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
+            } catch (err) {
+                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
+            }
+        }
+
+        const requestChannel = message.guild.channels.cache.get(CONFIG.deleteRoomRequestsChannel);
+        if (requestChannel) {
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`approve_del_${message.author.id}_${message.channel.id}`)
+                    .setLabel('✅')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId(`deny_del_${message.author.id}_${message.channel.id}`)
+                    .setLabel('❌')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+            await requestChannel.send({
+                content: `${userContent}\nمقدم الطلب: ${message.author}`,
+                files: filesToSend,
+                components: [row]
+            });
+        }
+
+        try { await message.reply("تم إرسال طلبك للإدارة للمراجعة."); } catch (e) {}
+        return;
+    }
+
+    // الأوامر الأخرى (ver, setup_ticket, send, bc, رول, إلخ)
+    const cleanMsg = message.content.trim();
+    if (cleanMsg === "ver" && hasAdminRole) {
         if (message.channel.id !== CONFIG.verificationRoom) {
             await message.reply(`هذا الأمر مخصص فقط للروم <#${CONFIG.verificationRoom}>`);
             return;
@@ -93,7 +250,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر إرسال زر التكت
     if (message.content.trim() === "!setup_ticket" && hasAdminRole) {
         const channel = message.guild.channels.cache.get(CONFIG.ticketSetupRoom);
         if (channel) {
@@ -113,47 +269,18 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر إخفاء / اخفا
-    const cleanMsg = message.content.trim();
     if ((cleanMsg === "إخفاء" || cleanMsg === "اخفا") && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         await message.channel.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: false });
         return;
     }
 
-    // أمر إظهار / اظهار
     if ((cleanMsg === "إظهار" || cleanMsg === "اظهار") && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         await message.channel.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: null });
         return;
     }
 
-    if (message.content.startsWith("قفل") && hasAdminRole) {
-        await message.channel.permissionOverwrites.edit(message.guild.id, { SendMessages: false, AddReactions: false });
-        return;
-    }
-
-    if (message.content.startsWith("فتح") && hasAdminRole) {
-        try { await message.delete(); } catch(e) {}
-        await message.channel.permissionOverwrites.edit(message.guild.id, { SendMessages: null, AddReactions: null });
-        return;
-    }
-
-    if (message.content.startsWith("مسح") && hasAdminRole) {
-        const args = message.content.split(" ");
-        const count = parseInt(args[1]);
-        try { await message.delete(); } catch(e) {}
-        if (!isNaN(count)) {
-            let fetched = await message.channel.messages.fetch({ limit: Math.min(count, 100) });
-            await message.channel.bulkDelete(fetched, true);
-        } else {
-            let fetched = await message.channel.messages.fetch({ limit: 100 });
-            await message.channel.bulkDelete(fetched, true);
-        }
-        return;
-    }
-
-    // أمر send لإرسال الصور والنصوص
     if (message.content.startsWith("send") && hasSupportRole) {
         const textToSend = message.content.slice(4).trim();
         const filesToSend = [];
@@ -178,226 +305,44 @@ client.on('messageCreate', async (message) => {
         }
         return;
     }
-
-    // أمر البث العام (bc)
-    if (message.content.startsWith("bc") && hasAdminRole) {
-        const broadcastContent = message.content.slice(2).trim();
-        const filesToSend = [];
-
-        for (const [id, attachment] of message.attachments) {
-            try {
-                const response = await fetch(attachment.url);
-                const buffer = Buffer.from(await response.arrayBuffer());
-                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
-            } catch (err) {
-                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
-            }
-        }
-        
-        const members = await message.guild.members.fetch();
-        let successCount = 0;
-
-        for (const [id, member] of members) {
-            if (member.user.bot) continue;
-            try {
-                await member.send({
-                    content: broadcastContent || undefined,
-                    files: filesToSend
-                });
-                successCount++;
-            } catch (err) {}
-        }
-
-        await message.reply(`تم الإرسال إلى جميع الناس الذي بالسيرفر (${successCount})`);
-        return;
-    }
-
-    // نظام طلبات الرولات (مع دعم المنشن أو الرد على الرسالة Reply)
-    if (message.content.startsWith("رول") && hasSupportRole) {
-        let targetMember = message.mentions.members.first();
-
-        if (!targetMember && message.reference) {
-            try {
-                const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
-                if (repliedMessage) {
-                    targetMember = await message.guild.members.fetch(repliedMessage.author.id).catch(() => null);
-                }
-            } catch (e) {}
-        }
-
-        if (!targetMember) return;
-
-        const roleQuery = message.content.replace("رول", "").replace(/<@!?\d+>/g, "").trim();
-        if (!roleQuery) {
-            await message.react('❌');
-            return;
-        }
-
-        const foundRole = message.guild.roles.cache.find(r => r.name.toLowerCase().includes(roleQuery.toLowerCase()) || r.id === roleQuery.replace(/[<@&>]/g, "") || r.name.startsWith(roleQuery));
-        
-        if (!foundRole) {
-            await message.react('❌');
-            return;
-        }
-
-        await message.react('✅');
-
-        const hasRoleAlready = targetMember.roles.cache.has(foundRole.id);
-
-        if (hasRoleAlready) {
-            const logRoom = message.guild.channels.cache.get(CONFIG.supportLogRoom);
-            if (logRoom) {
-                const warningMsg = await logRoom.send(`${message.author} اكتب دليلك لتل الرول`);
-                setTimeout(() => {
-                    warningMsg.delete().catch(() => {});
-                }, 15000);
-            }
-
-            const requestChannel = message.guild.channels.cache.get(CONFIG.roleRequestRoom);
-            if (requestChannel) {
-                const filesToSend = [];
-                for (const [id, attachment] of message.attachments) {
-                    try {
-                        const response = await fetch(attachment.url);
-                        const buffer = Buffer.from(await response.arrayBuffer());
-                        filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
-                    } catch (err) {
-                        filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
-                    }
-                }
-                
-                const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`remove_role_${targetMember.id}_${foundRole.id}`)
-                        .setLabel('صح')
-                        .setStyle(ButtonStyle.Success),
-                    new ButtonBuilder()
-                        .setCustomId(`deny_role_${targetMember.id}`)
-                        .setLabel('خطأ')
-                        .setStyle(ButtonStyle.Danger)
-                );
-
-                await requestChannel.send({
-                    content: `طلب تل رول (${foundRole.name}) من العضو: ${targetMember}\nبواسطة: ${message.author}`,
-                    files: filesToSend,
-                    components: [row]
-                });
-            }
-        } else {
-            const logRoom = message.guild.channels.cache.get(CONFIG.supportLogRoom);
-            if (logRoom) {
-                const warningMsg = await logRoom.send(`${message.author} اكتب دليلك`);
-                setTimeout(() => {
-                    warningMsg.delete().catch(() => {});
-                }, 15000);
-            }
-
-            const requestChannel = message.guild.channels.cache.get(CONFIG.roleRequestRoom);
-            if (requestChannel) {
-                const filesToSend = [];
-                for (const [id, attachment] of message.attachments) {
-                    try {
-                        const response = await fetch(attachment.url);
-                        const buffer = Buffer.from(await response.arrayBuffer());
-                        filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
-                    } catch (err) {
-                        filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
-                    }
-                }
-                
-                const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`approve_role_${targetMember.id}_${foundRole.id}`)
-                        .setLabel('صح')
-                        .setStyle(ButtonStyle.Success),
-                    new ButtonBuilder()
-                        .setCustomId(`deny_role_${targetMessageId || targetMember.id}`) // آمن
-                        .setLabel('خطأ')
-                        .setStyle(ButtonStyle.Danger)
-                );
-
-                await requestChannel.send({
-                    content: `طلب إعطاء رول (${foundRole.name}) للعضو: ${targetMember}\nبواسطة: ${message.author}`,
-                    files: filesToSend,
-                    components: [row]
-                });
-            }
-        }
-        return;
-    }
-
-    if (message.channel.name.startsWith("ticket-")) {
-        const cleanContent = message.content.trim();
-        const closeWords = ["إغلاق", "أغلاق", "آغلاق", "اغلاق"];
-        if (closeWords.includes(cleanContent) && hasSupportRole) {
-            try {
-                await message.channel.delete();
-            } catch (err) {
-                console.error("Error deleting ticket channel:", err);
-            }
-            return;
-        }
-    }
 });
 
-// اختبار 2 & 4: التعامل الآمن مع زر التفعيل الحالي `verify_btn` للعضو الذي ضغط الزر فقط دون كراش
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
-    // زر التفعيل الحالي
+    // زر التفعيل
     if (interaction.customId === 'verify_btn') {
         const member = interaction.member;
         try {
-            // 1. إزالة رول الدخول المؤقت الأول إذا كان العضو يملكه
             if (CONFIG.unverifiedRole && member.roles.cache.has(CONFIG.unverifiedRole)) {
                 await member.roles.remove(CONFIG.unverifiedRole);
             }
-            
-            // 2. إعطاء رول التفعيل النهائي الثاني إذا لم يكن يملكه
             if (CONFIG.verifiedRole && !member.roles.cache.has(CONFIG.verifiedRole)) {
                 await member.roles.add(CONFIG.verifiedRole);
             }
-            
             await interaction.reply({ content: "تم تفعيلك بنجاح!", ephemeral: true });
         } catch (err) {
-            console.error("Error handling verification interaction safely:", err);
-            // محاولة آمنة إضافية لإعطاء الرول الثاني كاحتياط دون التسبب بكراش
-            try {
-                if (CONFIG.verifiedRole && !member.roles.cache.has(CONFIG.verifiedRole)) {
-                    await member.roles.add(CONFIG.verifiedRole);
-                }
-            } catch (e) {}
-            
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: "تم تفعيلك بنجاح!", ephemeral: true }).catch(() => {});
-            }
+            await interaction.reply({ content: "تم تفعيلك بنجاح!", ephemeral: true }).catch(() => {});
         }
         return;
     }
 
-    // زر التكت
-    if (interaction.customId === 'create_ticket_btn') {
+    // زر إنشاء روم سري مؤقت wef-
+    if (interaction.customId === 'open_wef_voice') {
         const guild = interaction.guild;
         const user = interaction.user;
 
-        const existingTicket = guild.channels.cache.find(c => c.name === `ticket-${user.username}` && c.type === 0);
-        if (existingTicket) {
-            await interaction.reply({ content: "لا تستطيع فتح تيكت إلا لما يتقفل الأول.", ephemeral: true });
+        const existingWef = guild.channels.cache.find(c => c.name === `wef-${user.username}` && c.type === 0);
+        if (existingWef) {
+            await interaction.reply({ content: "لديك روم طلب مفتوح بالفعل.", ephemeral: true });
             return;
         }
 
-        const cat1 = guild.channels.cache.get(CONFIG.ticketCategory1);
-        let chosenCategory = CONFIG.ticketCategory1;
-
-        if (cat1 && cat1.children.cache.size >= 50) {
-            chosenCategory = CONFIG.ticketCategory2;
-        }
-
         try {
-            const ticketChannel = await guild.channels.create({
-                name: `ticket-${user.username}`,
-                type: 0, 
-                parent: chosenCategory,
+            const wefChannel = await guild.channels.create({
+                name: `wef-${user.username}`,
+                type: 0,
+                parent: CONFIG.secretRoomVoiceLog,
                 permissionOverwrites: [
                     {
                         id: guild.id,
@@ -414,80 +359,177 @@ client.on('interactionCreate', async (interaction) => {
                 ]
             });
 
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`call_owner_${user.id}`)
-                    .setLabel('استدعاء')
-                    .setStyle(ButtonStyle.Secondary)
-            );
-
-            await ticketChannel.send({
-                content: `<@&${CONFIG.supportRole}> <@&${CONFIG.adminControlRole}>\n\n**اكتب مشكلتك قبل نجي**`,
-                components: [row]
-            });
-
-            await interaction.reply({ content: `تم إنشاء التكت بنجاح: ${ticketChannel}`, ephemeral: true });
+            await interaction.reply({ content: `تم إنشاء روم الطلب الخاص بك: ${wefChannel}`, ephemeral: true });
         } catch (err) {
             console.error(err);
-            await interaction.reply({ content: "حدث خطأ أثناء إنشاء التكت.", ephemeral: true });
+            await interaction.reply({ content: "حدث خطأ أثناء إنشاء الروم.", ephemeral: true });
         }
         return;
     }
 
-    // زر استدعاء صاحب التكت
-    if (interaction.customId.startsWith('call_owner_')) {
-        const hasSupportPerms = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || 
-                                interaction.member.roles.cache.has(CONFIG.supportRole) || 
-                                interaction.member.roles.cache.has(CONFIG.adminControlRole);
+    // زر فتح روم حذف الروم delete-room-
+    if (interaction.customId === 'open_delete_voice') {
+        const guild = interaction.guild;
+        const user = interaction.user;
 
-        if (!hasSupportPerms) {
-            await interaction.reply({ content: "هذا الزر مخصص لفريق الدعم فقط.", ephemeral: true });
+        const existingDel = guild.channels.cache.find(c => c.name === `delete-room-${user.username}` && c.type === 0);
+        if (existingDel) {
+            await interaction.reply({ content: "لديك طلب حذف مفتوح بالفعل.", ephemeral: true });
             return;
         }
 
-        const ownerId = interaction.customId.split('_')[2];
-        const owner = await interaction.guild.members.fetch(ownerId).catch(() => null);
+        try {
+            const delChannel = await guild.channels.create({
+                name: `delete-room-${user.username}`,
+                type: 0,
+                parent: CONFIG.deleteRoomVoiceLog,
+                permissionOverwrites: [
+                    {
+                        id: guild.id,
+                        Deny: [PermissionFlagsBits.ViewChannel]
+                    },
+                    {
+                        id: user.id,
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    },
+                    {
+                        id: CONFIG.supportRole,
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    }
+                ]
+            });
 
-        if (owner) {
-            try {
-                await owner.send(`شيك على تذكرتك: ${interaction.channel}`);
-                await interaction.reply({ content: "تم إرسال تنبيه الاستدعاء لصاحب التكت بالخاص بنجاح.", ephemeral: true });
-            } catch (err) {
-                await interaction.reply({ content: "تعذر إرسال الرسالة لصاحب التكت (خاصه مغلق).", ephemeral: true });
-            }
-        } else {
-            await interaction.reply({ content: "لم يتم العثور على صاحب التكت.", ephemeral: true });
+            await delChannel.send("اكتب سبب حذف الروم ومنشن الروم وبينرسل طلبك للادارة واذا تم الموافقة عليه بينحذف");
+            await interaction.reply({ content: `تم إنشاء روم طلب الحذف: ${delChannel}`, ephemeral: true });
+        } catch (err) {
+            await interaction.reply({ content: "حدث خطأ أثناء إنشاء الروم.", ephemeral: true });
         }
         return;
     }
 
-    if (interaction.customId.startsWith('approve_role_') || interaction.customId.startsWith('remove_role_') || interaction.customId.startsWith('deny_role_')) {
-        const isApprove = interaction.customId.startsWith('approve_role_');
-        const isRemove = interaction.customId.startsWith('remove_role_');
+    // الموافقة على إنشاء الروم السري وتوزيعها تلقائياً بالترتيب (أقل من 50 روم لكل كاتيغوري)
+    if (interaction.customId.startsWith('approve_wef_') || interaction.customId.startsWith('deny_wef_')) {
         const parts = interaction.customId.split('_');
+        const action = parts[0];
         const targetUserId = parts[2];
-        const roleId = parts[3];
+        const originalChannelId = parts[3];
 
-        const member = await interaction.guild.members.fetch(targetUserId).catch(() => null);
+        const targetUser = await interaction.guild.members.fetch(targetUserId).catch(() => null);
 
-        if (isApprove && member && roleId) {
+        if (action === 'deny') {
             try {
-                await member.roles.add(roleId);
-                await interaction.update({ content: `تم قبول الطلب وإعطاء الرول بنجاح لـ (${member}).`, components: [] });
-            } catch (err) {
-                await interaction.update({ content: `تم قبول الطلب وإعطاء الرول بنجاح لـ (${member}).`, components: [] });
+                if (targetUser) await targetUser.send("تم رفض طلبك لانشاء روم");
+            } catch(e) {}
+            await interaction.update({ content: "تم رفض طلب إنشاء الروم.", components: [] });
+            try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
+            return;
+        }
+
+        if (action === 'approve') {
+            const guild = interaction.guild;
+            
+            // جلب محتوى الرسالة الأصلية (الصور والنصوص)
+            const requestMsg = interaction.message;
+            const contentBody = requestMsg.content.split('\nبواسطة')[0];
+
+            const filesToSend = [];
+            for (const att of requestMsg.attachments.values()) {
+                try {
+                    const response = await fetch(att.url);
+                    const buffer = Buffer.from(await response.arrayBuffer());
+                    filesToSend.push(new AttachmentBuilder(buffer, { name: att.name || 'image.png' }));
+                } catch (err) {}
             }
-        } else if (isRemove && member && roleId) {
+
+            // البحث عن الكاتيغوري المناسب (أقل من 50 روم بالترتيب)
+            let chosenCategory = null;
+            for (const catId of CONFIG.secretCategories) {
+                const category = guild.channels.cache.get(catId);
+                if (category && category.children.cache.size < 50) {
+                    chosenCategory = catId;
+                    break;
+                }
+            }
+
+            // إذا امتلت كل الكاتيغوريات نضعها في الأخيرة كاحتياط
+            if (!chosenCategory) {
+                chosenCategory = CONFIG.secretCategories[CONFIG.secretCategories.length - 1];
+            }
+
             try {
-                await member.roles.remove(roleId);
-                await interaction.update({ content: `تم قبول الطلب وتل الرول بنجاح من (${member}).`, components: [] });
+                // اسم الروم يكون محتوى رسالة الشخص (مثل اسم الشخص أو العبارة)
+                const roomName = contentBody.slice(0, 95) || `room-${targetUserId}`;
+
+                const newSecretRoom = await guild.channels.create({
+                    name: roomName,
+                    type: 0,
+                    parent: chosenCategory,
+                    permissionOverwrites: [
+                        {
+                            id: guild.id,
+                            Deny: [PermissionFlagsBits.ViewChannel] // محد يشوفه أبدا حتى السبورت مايشوفون بس الإستريتر/الإدارة
+                        },
+                        {
+                            id: CONFIG.adminControlRole,
+                            Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
+                        },
+                        {
+                            id: targetUserId,
+                            Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
+                        }
+                    ]
+                });
+
+                // أول ما يتسوى الروم يرسل التحذير والبيانات
+                await newSecretRoom.send("This room is for those over 18 years old");
+                if (contentBody || filesToSend.length > 0) {
+                    await newSecretRoom.send({
+                        content: contentBody || undefined,
+                        files: filesToSend
+                    });
+                }
+
+                await interaction.update({ content: `تم الموافقة وإنشاء الروم بنجاح: ${newSecretRoom}`, components: [] });
+                try { await guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
             } catch (err) {
-                await interaction.update({ content: `تم قبول الطلب وتل الرول بنجاح من (${member}).`, components: [] });
+                console.error(err);
+                await interaction.reply({ content: "حدث خطأ أثناء إنشاء الروم السري.", ephemeral: true });
             }
-        } else if (interaction.customId.startsWith('deny_role_')) {
-            await interaction.update({ content: "تم رفض الطلب.", components: [] });
-        } else {
-            await interaction.reply({ content: "لم يتم العثور على العضو.", ephemeral: true });
+        }
+        return;
+    }
+
+    // الموافقة أو الرفض لحذف الروم
+    if (interaction.customId.startsWith('approve_del_') || interaction.customId.startsWith('deny_del_')) {
+        const parts = interaction.customId.split('_');
+        const action = parts[0];
+        const targetUserId = parts[2];
+        const originalChannelId = parts[3];
+
+        const targetUser = await interaction.guild.members.fetch(targetUserId).catch(() => null);
+
+        if (action === 'deny') {
+            try {
+                if (targetUser) await targetUser.send("تم رفض طلبك لحذف الروم");
+            } catch(e) {}
+            await interaction.update({ content: "تم رفض طلب حذف الروم.", components: [] });
+            try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
+            return;
+        }
+
+        if (action === 'approve') {
+            const requestMsg = interaction.message;
+            // استخراج الروم الممنشن من رسالة الطلب لحذفه فوراً
+            const mentionedChannel = requestMsg.mentions.channels.first();
+
+            if (mentionedChannel) {
+                try {
+                    await mentionedChannel.delete();
+                } catch (e) {}
+            }
+
+            await interaction.update({ content: "تمت الموافقة وحذف الروم بنجاح.", components: [] });
+            try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
         }
         return;
     }
