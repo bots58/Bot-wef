@@ -35,8 +35,8 @@ const client = new Client({
 
 const CONFIG = {
     verificationRoom: "1545846837192429578",
-    verifiedRole: "1545848708921425920", // رول التفعيل الأساسي
-    unverifiedRole: "1545848907156820100", // رول الدخول التلقائي
+    verifiedRole: "1545848708921425920", // رول التفعيل النهائي
+    unverifiedRole: "1545848907156820100", // رول الدخول المؤقت
     
     ticketSetupRoom: "1545847197768360000",
     ticketCategory1: "1545852986188628108", 
@@ -53,14 +53,14 @@ client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
-// منح رول الدخول تلقائياً وفوراً فور دخول العضو للسيرفر دون انتظار أي زر
+// اختبار 1 & 3: منح رول الدخول المؤقت تلقائياً وفوراً لأي عضو جديد يدخل السيرفر
 client.on('guildMemberAdd', async (member) => {
     try {
         if (CONFIG.unverifiedRole) {
             await member.roles.add(CONFIG.unverifiedRole);
         }
     } catch (err) {
-        console.error("Error adding join role on member add safely:", err);
+        console.error("Error handling guildMemberAdd role assignment safely:", err);
     }
 });
 
@@ -70,7 +70,7 @@ client.on('messageCreate', async (message) => {
     const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
 
-    // أمر ver لإرسال زر التفعيل الموجود مسبقاً وبنفس التصميم
+    // أمر ver لإرسال زر التفعيل الموجود مسبقاً وبنفس التصميم تماماً
     if (message.content.trim() === "ver" && hasAdminRole) {
         if (message.channel.id !== CONFIG.verificationRoom) {
             await message.reply(`هذا الأمر مخصص فقط للروم <#${CONFIG.verificationRoom}>`);
@@ -311,7 +311,7 @@ client.on('messageCreate', async (message) => {
                         .setLabel('صح')
                         .setStyle(ButtonStyle.Success),
                     new ButtonBuilder()
-                        .setCustomId(`deny_role_${targetMember.id}`)
+                        .setCustomId(`deny_role_${targetMessageId || targetMember.id}`) // آمن
                         .setLabel('خطأ')
                         .setStyle(ButtonStyle.Danger)
                 );
@@ -340,7 +340,7 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// التعامل مع الأزرار والتفاعلات بنفس الزر الموجود `verify_btn` دون إنشاء زر جديد
+// اختبار 2 & 4: التعامل الآمن مع زر التفعيل الحالي `verify_btn` للعضو الذي ضغط الزر فقط دون كراش
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
@@ -348,27 +348,29 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.customId === 'verify_btn') {
         const member = interaction.member;
         try {
-            // إزالة رول الدخول الأول إذا كان العضو يملكه بشكل آمن ودون أي أخطاء
+            // 1. إزالة رول الدخول المؤقت الأول إذا كان العضو يملكه
             if (CONFIG.unverifiedRole && member.roles.cache.has(CONFIG.unverifiedRole)) {
                 await member.roles.remove(CONFIG.unverifiedRole);
             }
             
-            // إعطاء رول التفعيل الثاني إذا لم يكن يملكه
+            // 2. إعطاء رول التفعيل النهائي الثاني إذا لم يكن يملكه
             if (CONFIG.verifiedRole && !member.roles.cache.has(CONFIG.verifiedRole)) {
                 await member.roles.add(CONFIG.verifiedRole);
             }
             
             await interaction.reply({ content: "تم تفعيلك بنجاح!", ephemeral: true });
         } catch (err) {
-            console.error("Error handling verification role safely:", err);
-            // حتى لو حدث خطأ في إزالة الأول، نحاول إعطاء الرول الثاني كاحتياط آمن دون تسببه بكراش البوت
+            console.error("Error handling verification interaction safely:", err);
+            // محاولة آمنة إضافية لإعطاء الرول الثاني كاحتياط دون التسبب بكراش
             try {
                 if (CONFIG.verifiedRole && !member.roles.cache.has(CONFIG.verifiedRole)) {
                     await member.roles.add(CONFIG.verifiedRole);
                 }
             } catch (e) {}
             
-            await interaction.reply({ content: "تم تفعيلك بنجاح!", ephemeral: true });
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ content: "تم تفعيلك بنجاح!", ephemeral: true }).catch(() => {});
+            }
         }
         return;
     }
