@@ -51,7 +51,7 @@ const CONFIG = {
     // إعدادات الرومات السرية الجديدة
     secretRoomSetupChannel: "1545856705110220883",
     secretRoomVoiceLog: "1545857287934054480",
-    secretRoomRequestsChannel: "1545859174750224454",
+    secretRoomRequestsChannel: "1545845982196142226",
 
     deleteRoomSetupChannel: "1547232353095778355",
     deleteRoomVoiceLog: "1547232423522082816",
@@ -94,7 +94,7 @@ client.on('messageCreate', async (message) => {
     const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
 
-    // أمر حذف روم سريع بالمنشن (أقل من ثانية)
+    // أمر حذف روم سريع بالمنشن (أقل من ثانية) للأونرية/الأدمن
     const msgContent = message.content.trim();
     if ((msgContent.startsWith("حذف روم") || msgContent.startsWith("حذفورم")) && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
@@ -105,7 +105,95 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر إرسال رسالة وزر إنشاء الروم السري
+    // أمر إنشاء روم المباشر (للأونرية فقط في الروم المخصص الجديد)
+    if (message.channel.id === CONFIG.secretRoomRequestsChannel && (msgContent.startsWith("انشاء روم") || msgContent.startsWith("إنشاء روم")) && hasAdminRole) {
+        try { await message.delete(); } catch(e) {}
+
+        const userContent = msgContent.replace(/^(إنشاء روم|انشاء روم)/, "").trim();
+        const filesToSend = [];
+
+        for (const [id, attachment] of message.attachments) {
+            try {
+                const response = await fetch(attachment.url);
+                const buffer = Buffer.from(await response.arrayBuffer());
+                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
+            } catch (err) {
+                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
+            }
+        }
+
+        const guild = message.guild;
+
+        // البحث عن أول كاتيجوري لم يمتلئ (أقل من 50 روم بالترتيب)
+        let chosenCategory = null;
+        for (const catId of CONFIG.secretCategories) {
+            const category = guild.channels.cache.get(catId);
+            if (category && category.children.cache.size < 50) {
+                chosenCategory = catId;
+                break;
+            }
+        }
+
+        if (!chosenCategory) {
+            chosenCategory = CONFIG.secretCategories[CONFIG.secretCategories.length - 1];
+        }
+
+        try {
+            const roomName = userContent.slice(0, 95) || `room-${message.author.id}`;
+
+            const newSecretRoom = await guild.channels.create({
+                name: roomName,
+                type: 0,
+                parent: chosenCategory,
+                permissionOverwrites: [
+                    {
+                        id: guild.id,
+                        Deny: [PermissionFlagsBits.ViewChannel]
+                    },
+                    {
+                        id: CONFIG.adminControlRole,
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
+                    },
+                    {
+                        id: message.author.id,
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
+                    }
+                ]
+            });
+
+            // إرسال صورة التحذير العمرية
+            const embed18 = new EmbedBuilder()
+                .setDescription("This room is for those over 18 years old")
+                .setColor(0x2f3136);
+
+            await newSecretRoom.send({ embeds: [embed18] });
+
+            if (filesToSend.length > 0) {
+                await newSecretRoom.send({
+                    files: filesToSend
+                });
+            }
+
+            // تنفيذ القفل والإخفاء الفوري بأقل من الثانية
+            try {
+                const lockMsg = await newSecretRoom.send("قفل");
+                try { await lockMsg.delete(); } catch(e) {}
+                await newSecretRoom.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: false });
+            } catch(e) {}
+
+            try {
+                const hideMsg = await newSecretRoom.send("إخفاء");
+                try { await hideMsg.delete(); } catch(e) {}
+                await newSecretRoom.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: false });
+            } catch(e) {}
+
+        } catch (err) {
+            console.error(err);
+        }
+        return;
+    }
+
+    // أمر إرسال رسالة وزر إنشاء الروم السري للعامة
     if (message.content.trim() === "!setup_secret" && hasAdminRole) {
         if (message.channel.id !== CONFIG.secretRoomSetupChannel) {
             await message.reply(`هذا الأمر مخصص فقط للروم <#${CONFIG.secretRoomSetupChannel}>`);
@@ -151,10 +239,9 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // التعامل مع استقبال طلبات إنشاء الروم في روم wef- (يدعم "انشاء روم" أو البدء بها)
+    // التعامل مع استقبال طلبات إنشاء الروم العامة في روم wef-
     if (message.channel.name.startsWith("wef-")) {
         const rawContent = message.content.trim();
-        // التحقق مما إذا كانت الرسالة تبدأ بـ "انشاء روم" أو "إنشاء روم"
         if (rawContent.startsWith("انشاء روم") || rawContent.startsWith("إنشاء روم")) {
             const userContent = rawContent.replace(/^(إنشاء روم|انشاء روم)/, "").trim();
             const filesToSend = [];
@@ -450,7 +537,6 @@ client.on('interactionCreate', async (interaction) => {
                 } catch (err) {}
             }
 
-            // البحث عن أول كاتيجوري لم يمتلئ (أقل من 50 روم بالترتيب)
             let chosenCategory = null;
             for (const catId of CONFIG.secretCategories) {
                 const category = guild.channels.cache.get(catId);
@@ -487,7 +573,6 @@ client.on('interactionCreate', async (interaction) => {
                     ]
                 });
 
-                // إرسال صورة التحذير العمرية (مطابقة للصورة المرفقة تماماً)
                 const embed18 = new EmbedBuilder()
                     .setDescription("This room is for those over 18 years old")
                     .setColor(0x2f3136);
@@ -500,17 +585,13 @@ client.on('interactionCreate', async (interaction) => {
                     });
                 }
 
-                // تنفيذ القفل والإخفاء الفوري بأقل من الثانية
                 try {
-                    // إرسال وحذف أمر "قفل"
                     const lockMsg = await newSecretRoom.send("قفل");
                     try { await lockMsg.delete(); } catch(e) {}
-                    // قفل الروم لمنع الرتبة غير المفعلة أو الجميع
                     await newSecretRoom.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: false });
                 } catch(e) {}
 
                 try {
-                    // إرسال وحذف أمر "إخفاء"
                     const hideMsg = await newSecretRoom.send("إخفاء");
                     try { await hideMsg.delete(); } catch(e) {}
                     await newSecretRoom.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: false });
