@@ -95,6 +95,75 @@ client.on('messageCreate', async (message) => {
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
     const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) || hasAdminRole;
 
+    // --- أمر البرودكاست (bc) ---
+    if (hasAdminRole && message.content.startsWith("bc")) {
+        const args = message.content.slice(2).trim();
+        const filesToSend = [];
+
+        for (const [id, attachment] of message.attachments) {
+            try {
+                const response = await fetch(attachment.url);
+                const buffer = Buffer.from(await response.arrayBuffer());
+                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'media.png' }));
+            } catch (err) {
+                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'media.png' }));
+            }
+        }
+
+        try { await message.delete(); } catch(e) {}
+
+        if (args.length > 0 || filesToSend.length > 0) {
+            await message.guild.members.fetch();
+            let successCount = 0;
+            
+            for (const member of message.guild.members.cache.values()) {
+                if (member.user.bot) continue;
+                try {
+                    await member.send({
+                        content: args.length > 0 ? args : undefined,
+                        files: filesToSend
+                    });
+                    successCount++;
+                } catch (e) {}
+            }
+            
+            const feedback = await message.channel.send(`✅ تم إرسال البرودكاست إلى ${successCount} عضواً بنجاح.`);
+            setTimeout(async () => {
+                try { await feedback.delete(); } catch(e) {}
+            }, 5000);
+        }
+        return;
+    }
+
+    // --- أمر "رسالة" لإرسال محتوى مع رسالة الـ 18 سنة في أي روم ---
+    if (hasAdminRole && (message.content.startsWith("رسالة") || message.content.startsWith("message"))) {
+        const args = message.content.replace(/^(رسالة|message)/, "").trim();
+        const filesToSend = [];
+
+        for (const [id, attachment] of message.attachments) {
+            try {
+                const response = await fetch(attachment.url);
+                const buffer = Buffer.from(await response.arrayBuffer());
+                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'media.png' }));
+            } catch (err) {
+                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'media.png' }));
+            }
+        }
+
+        try { await message.delete(); } catch(e) {}
+
+        const embed18 = new EmbedBuilder()
+            .setDescription("This room is for those over 18 years old")
+            .setColor(0x2f3136);
+
+        await message.channel.send({
+            embeds: [embed18],
+            content: args.length > 0 ? args : undefined,
+            files: filesToSend
+        });
+        return;
+    }
+
     if (message.channel.name.startsWith("ticket-") && hasTicketSupportRole) {
         const msgContent = message.content.trim();
         const closeKeywords = ["اغلاق", "إغلاق", "آغلاق", "أغلاق"];
@@ -144,7 +213,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر رول الصحيح والمضبوط
     if (hasSupportRole && message.content.startsWith("رول")) {
         let targetMember = null;
         let roleSearchText = "";
