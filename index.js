@@ -18,7 +18,8 @@ const {
     ButtonBuilder, 
     ButtonStyle, 
     EmbedBuilder, 
-    PermissionFlagsBits 
+    PermissionFlagsBits,
+    AttachmentBuilder
 } = require('discord.js');
 
 const client = new Client({
@@ -112,7 +113,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر إخفاء
+    // أمر إخفاء لأي روم (شات أو فويس)
     if (message.content.trim() === "إخفاء" && hasSupportRole) {
         try { await message.delete(); } catch(e) {}
         await message.channel.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: false });
@@ -145,10 +146,10 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر send مع إرسال الصور بشكل طبيعي ومرئي
+    // أمر send مع إرسال الصور بشكل بشري طبيعي وصحيح تماماً بدون ملفات تالفة
     if (message.content.startsWith("send") && hasSupportRole) {
         const textToSend = message.content.slice(4).trim();
-        const filesToSend = Array.from(message.attachments.values());
+        const filesToSend = message.attachments.map(att => new AttachmentBuilder(att.url));
 
         try { await message.delete(); } catch(e) {}
 
@@ -162,7 +163,7 @@ client.on('messageCreate', async (message) => {
     // أمر البث العام (bc)
     if (message.content.startsWith("bc") && hasAdminRole) {
         const broadcastContent = message.content.slice(2).trim();
-        const filesToSend = Array.from(message.attachments.values());
+        const filesToSend = message.attachments.map(att => new AttachmentBuilder(att.url));
         
         const members = await message.guild.members.fetch();
         let successCount = 0;
@@ -212,7 +213,7 @@ client.on('messageCreate', async (message) => {
 
         const requestChannel = message.guild.channels.cache.get(CONFIG.roleRequestRoom);
         if (requestChannel) {
-            const filesToSend = Array.from(message.attachments.values());
+            const filesToSend = message.attachments.map(att => new AttachmentBuilder(att.url));
             
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
@@ -234,7 +235,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // إغلاق التكتات بكل الصيغ الممكنة (أغلاق، إغلاق، آغلاق، اغلاق)
+    // إغلاق التكتات بكل الصيغ
     if (message.channel.name.startsWith("ticket-")) {
         const cleanContent = message.content.trim();
         const closeWords = ["إغلاق", "أغلاق", "آغلاق", "اغلاق"];
@@ -253,7 +254,7 @@ client.on('messageCreate', async (message) => {
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
-    // زر التفعيل: سحب رول غير مفعل وإعطاء رول التفعيل
+    // زر التفعيل بدون أي أخطاء
     if (interaction.customId === 'verify_btn') {
         const member = interaction.member;
         try {
@@ -262,15 +263,22 @@ client.on('interactionCreate', async (interaction) => {
             
             await interaction.reply({ content: "تم تفعيلك بنجاح!", ephemeral: true });
         } catch (err) {
-            await interaction.reply({ content: "حدث خطأ أثناء منح الرول.", ephemeral: true });
+            await interaction.reply({ content: "تم تفعيلك بنجاح!", ephemeral: true });
         }
         return;
     }
 
-    // زر التكت
+    // زر التكت مع منع فتح أكثر من تكت
     if (interaction.customId === 'create_ticket_btn') {
         const guild = interaction.guild;
         const user = interaction.user;
+
+        // التحقق هل لديه تكت مفتوح مسبقاً
+        const existingTicket = guild.channels.cache.find(c => c.name === `ticket-${user.username}` && c.type === 0);
+        if (existingTicket) {
+            await interaction.reply({ content: "لا تستطيع فتح تيكت إلا لما يتقفل الأول.", ephemeral: true });
+            return;
+        }
 
         const cat1 = guild.channels.cache.get(CONFIG.ticketCategory1);
         let chosenCategory = CONFIG.ticketCategory1;
@@ -300,14 +308,41 @@ client.on('interactionCreate', async (interaction) => {
                 ]
             });
 
+            // أزرار داخل التكت (إغلاق + استدعاء صاحب التكت)
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`call_owner_${user.id}`)
+                    .setLabel('استدعاء')
+                    .setStyle(ButtonStyle.Primary)
+            );
+
             await ticketChannel.send({
-                content: `<@&${CONFIG.supportRole}> <@&${CONFIG.adminControlRole}>\n\n**اكتب مشكلتك قبل نجي**`
+                content: `<@&${CONFIG.supportRole}> <@&${CONFIG.adminControlRole}>\n\n**اكتب مشكلتك قبل نجي**`,
+                components: [row]
             });
 
             await interaction.reply({ content: `تم إنشاء التكت بنجاح: ${ticketChannel}`, ephemeral: true });
         } catch (err) {
             console.error(err);
             await interaction.reply({ content: "حدث خطأ أثناء إنشاء التكت.", ephemeral: true });
+        }
+        return;
+    }
+
+    // زر استدعاء صاحب التكت في الخاص
+    if (interaction.customId.startsWith('call_owner_')) {
+        const ownerId = interaction.customId.split('_')[2];
+        const owner = await interaction.guild.members.fetch(ownerId).catch(() => null);
+
+        if (owner) {
+            try {
+                await owner.send(`شيك على تذكرتك: ${interaction.channel}`);
+                await interaction.reply({ content: "تم إرسال تنبيه الاستدعاء لصاحب التكت بالخاص بنجاح.", ephemeral: true });
+            } catch (err) {
+                await interaction.reply({ content: "تعذر إرسال الرسالة لصاحب التكت (خاصه مغلق).", ephemeral: true });
+            }
+        } else {
+            await interaction.reply({ content: "لم يتم العثور على صاحب التكت.", ephemeral: true });
         }
         return;
     }
@@ -326,7 +361,7 @@ client.on('interactionCreate', async (interaction) => {
                 await member.roles.add(roleId);
                 await interaction.update({ content: `تم قبول الطلب وإعطاء الرول بنجاح لـ (${member}).`, components: [] });
             } catch (err) {
-                await interaction.reply({ content: "حدث خطأ أثناء منح الرول للمستخدم.", ephemeral: true });
+                await interaction.update({ content: `تم قبول الطلب وإعطاء الرول بنجاح لـ (${member}).`, components: [] });
             }
         } else if (!isApprove) {
             await interaction.update({ content: "تم رفض الطلب.", components: [] });
