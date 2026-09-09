@@ -1,7 +1,7 @@
 {
   "name": "discord-bot",
   "version": "1.0.0",
-  "description": "Discord Bot with Verification, Tickets, and Role Request Systems",
+  "description": "Discord Bot with Auto Role and Verification System",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
