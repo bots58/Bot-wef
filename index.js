@@ -774,7 +774,10 @@ client.on('interactionCreate', async (interaction) => {
 
         if (action === 'deny') {
             try {
-                if (targetUser) await targetUrlSend = await targetUser.send("تم رفض طلبك لحذف الروم");
+                if (targetUser) {
+    targetUrlSend = await targetUser.send("تم رفض طلبك لحذف الروم");
+}
+
             } catch(e) {}
             await interaction.update({ content: "تم رفض طلب حذف الروم.", components: [] });
             try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
