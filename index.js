@@ -144,21 +144,27 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    if (hasSupportRole) {
+    // أمر رول الجديد (يدعم كتابة اسم الرول أو أول حرفين منه، بالمنشن أو الرد)
+    if (hasSupportRole && message.content.startsWith("رول")) {
         let targetMember = null;
         let roleSearchText = "";
 
+        const args = message.content.trim().split(" ");
+        
+        // إذا كان بالرد على رسالة العضو
         if (message.reference) {
             try {
                 const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
                 targetMember = await message.guild.members.fetch(repliedMessage.author.id);
-                roleSearchText = message.content.trim();
-            } catch (e) {}
+                // النص يبدأ من الكلمة الثانية بعد "رول"
+                roleSearchText = args.slice(1).join(" ").trim();
+            } else (e) {}
         }
 
+        // إذا كان بمنشن العضو (مثال: رول @user المخفي أو رول @user الم)
         if (!targetMember && message.mentions.members.size > 0) {
             targetMember = message.mentions.members.first();
-            let cleanContent = message.content;
+            let cleanContent = message.content.replace("رول", "").trim();
             message.mentions.members.forEach(m => {
                 cleanContent = cleanContent.replace(new RegExp(`<@!?${m.id}>`, 'g'), '');
             });
@@ -172,7 +178,8 @@ client.on('messageCreate', async (message) => {
             for (const role of allRoles.values()) {
                 if (role.id === message.guild.id) continue;
                 const roleName = role.name.trim();
-                if (roleName.startsWith(roleSearchText) || roleName.toLowerCase().startsWith(roleSearchText.toLowerCase())) {
+                // التحقق إذا تطابق الاسم كامل أو بدأ بأول الحرفين
+                if (roleName.toLowerCase() === roleSearchText.toLowerCase() || roleName.toLowerCase().startsWith(roleSearchText.toLowerCase())) {
                     foundRole = role;
                     break;
                 }
@@ -737,7 +744,7 @@ client.on('interactionCreate', async (interaction) => {
                         },
                         {
                             id: targetUserId,
-                            Allow: [PermissionFlagsBits.ViewChannel, PermissionFilesBits?.SendMessages || PermissionFlagsBits.SendMessages]
+                            Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
                         }
                     ]
                 });
@@ -775,9 +782,8 @@ client.on('interactionCreate', async (interaction) => {
         if (action === 'deny') {
             try {
                 if (targetUser) {
-    targetUrlSend = await targetUser.send("تم رفض طلبك لحذف الروم");
-}
-
+                    await targetUser.send("تم رفض طلبك لحذف الروم");
+                }
             } catch(e) {}
             await interaction.update({ content: "تم رفض طلب حذف الروم.", components: [] });
             try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
