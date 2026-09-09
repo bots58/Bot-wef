@@ -35,8 +35,8 @@ const client = new Client({
 
 const CONFIG = {
     verificationRoom: "1545846837192429578",
-    verifiedRole: "1545848708921425920", // الرول الذي يتم إعطاؤه عند التفعيل
-    unverifiedRole: "1545848907156820100", // الرول التلقائي عند الدخول والذي يزال عند التفعيل
+    verifiedRole: "1545848708921425920", // رول التفعيل الأساسي
+    unverifiedRole: "1545848907156820100", // رول الدخول التلقائي
     
     ticketSetupRoom: "1545847197768360000",
     ticketCategory1: "1545852986188628108", 
@@ -53,14 +53,14 @@ client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
-// منح الرول غير المفعل تلقائياً وفوراً لأي عضو جديد يدخل السيرفر
+// منح رول الدخول تلقائياً وفوراً فور دخول العضو للسيرفر دون انتظار أي زر
 client.on('guildMemberAdd', async (member) => {
     try {
         if (CONFIG.unverifiedRole) {
             await member.roles.add(CONFIG.unverifiedRole);
         }
     } catch (err) {
-        console.error("Error adding join role on member add:", err);
+        console.error("Error adding join role on member add safely:", err);
     }
 });
 
@@ -70,7 +70,7 @@ client.on('messageCreate', async (message) => {
     const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
 
-    // أمر ver لإرسال زر التفعيل
+    // أمر ver لإرسال زر التفعيل الموجود مسبقاً وبنفس التصميم
     if (message.content.trim() === "ver" && hasAdminRole) {
         if (message.channel.id !== CONFIG.verificationRoom) {
             await message.reply(`هذا الأمر مخصص فقط للروم <#${CONFIG.verificationRoom}>`);
@@ -216,7 +216,6 @@ client.on('messageCreate', async (message) => {
     if (message.content.startsWith("رول") && hasSupportRole) {
         let targetMember = message.mentions.members.first();
 
-        // دعم الرد على الرسالة (Reply) إذا لم يكن هناك منشن
         if (!targetMember && message.reference) {
             try {
                 const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
@@ -246,7 +245,6 @@ client.on('messageCreate', async (message) => {
         const hasRoleAlready = targetMember.roles.cache.has(foundRole.id);
 
         if (hasRoleAlready) {
-            // الشخص معه الرول مسبقاً -> طلب تل (سحب) الرول
             const logRoom = message.guild.channels.cache.get(CONFIG.supportLogRoom);
             if (logRoom) {
                 const warningMsg = await logRoom.send(`${message.author} اكتب دليلك لتل الرول`);
@@ -286,7 +284,6 @@ client.on('messageCreate', async (message) => {
                 });
             }
         } else {
-            // الشخص ليس معه الرول -> طلب إعطاء رول
             const logRoom = message.guild.channels.cache.get(CONFIG.supportLogRoom);
             if (logRoom) {
                 const warningMsg = await logRoom.send(`${message.author} اكتب دليلك`);
@@ -329,7 +326,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // إغلاق التكتات بكل الصيغ
     if (message.channel.name.startsWith("ticket-")) {
         const cleanContent = message.content.trim();
         const closeWords = ["إغلاق", "أغلاق", "آغلاق", "اغلاق"];
@@ -344,29 +340,40 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// التعامل مع الأزرار والتفاعلات
+// التعامل مع الأزرار والتفاعلات بنفس الزر الموجود `verify_btn` دون إنشاء زر جديد
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
-    // زر التفعيل: إزالة رول غير المفعل وإضافة رول المفعل الأساسي
+    // زر التفعيل الحالي
     if (interaction.customId === 'verify_btn') {
         const member = interaction.member;
         try {
+            // إزالة رول الدخول الأول إذا كان العضو يملكه بشكل آمن ودون أي أخطاء
             if (CONFIG.unverifiedRole && member.roles.cache.has(CONFIG.unverifiedRole)) {
                 await member.roles.remove(CONFIG.unverifiedRole);
             }
-            if (CONFIG.verifiedRole) {
+            
+            // إعطاء رول التفعيل الثاني إذا لم يكن يملكه
+            if (CONFIG.verifiedRole && !member.roles.cache.has(CONFIG.verifiedRole)) {
                 await member.roles.add(CONFIG.verifiedRole);
             }
             
             await interaction.reply({ content: "تم تفعيلك بنجاح!", ephemeral: true });
         } catch (err) {
+            console.error("Error handling verification role safely:", err);
+            // حتى لو حدث خطأ في إزالة الأول، نحاول إعطاء الرول الثاني كاحتياط آمن دون تسببه بكراش البوت
+            try {
+                if (CONFIG.verifiedRole && !member.roles.cache.has(CONFIG.verifiedRole)) {
+                    await member.roles.add(CONFIG.verifiedRole);
+                }
+            } catch (e) {}
+            
             await interaction.reply({ content: "تم تفعيلك بنجاح!", ephemeral: true });
         }
         return;
     }
 
-    // زر التكت مع منع فتح أكثر من تكت
+    // زر التكت
     if (interaction.customId === 'create_ticket_btn') {
         const guild = interaction.guild;
         const user = interaction.user;
@@ -452,7 +459,6 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // قبول إعطاء رول، قبول سحب رول (تل الرول)، أو رفض الطلب
     if (interaction.customId.startsWith('approve_role_') || interaction.customId.startsWith('remove_role_') || interaction.customId.startsWith('deny_role_')) {
         const isApprove = interaction.customId.startsWith('approve_role_');
         const isRemove = interaction.customId.startsWith('remove_role_');
