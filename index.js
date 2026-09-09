@@ -113,11 +113,18 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر إخفاء أو اخفا (يحذف الرسالة ويخفي الروم بدون إرسال أي رد)
+    // أمر إخفاء / اخفا (يحذف الرسالة ويخفي الروم بدون رد)
     const cleanMsg = message.content.trim();
     if ((cleanMsg === "إخفاء" || cleanMsg === "اخفا") && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         await message.channel.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: false });
+        return;
+    }
+
+    // أمر إظهار / اظهار (يحذف الرسالة ويرجع الروم ظاهر للكل بدون رد)
+    if ((cleanMsg === "إظهار" || cleanMsg === "اظهار") && hasAdminRole) {
+        try { await message.delete(); } catch(e) {}
+        await message.channel.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: null });
         return;
     }
 
