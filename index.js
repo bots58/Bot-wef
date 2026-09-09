@@ -144,24 +144,21 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر رول الجديد (يدعم كتابة اسم الرول أو أول حرفين منه، بالمنشن أو الرد)
+    // أمر رول الصحيح والمضبوط
     if (hasSupportRole && message.content.startsWith("رول")) {
         let targetMember = null;
         let roleSearchText = "";
 
         const args = message.content.trim().split(" ");
         
-        // إذا كان بالرد على رسالة العضو
         if (message.reference) {
             try {
                 const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
                 targetMember = await message.guild.members.fetch(repliedMessage.author.id);
-                // النص يبدأ من الكلمة الثانية بعد "رول"
                 roleSearchText = args.slice(1).join(" ").trim();
-            } else (e) {}
+            } catch (e) {}
         }
 
-        // إذا كان بمنشن العضو (مثال: رول @user المخفي أو رول @user الم)
         if (!targetMember && message.mentions.members.size > 0) {
             targetMember = message.mentions.members.first();
             let cleanContent = message.content.replace("رول", "").trim();
@@ -178,7 +175,6 @@ client.on('messageCreate', async (message) => {
             for (const role of allRoles.values()) {
                 if (role.id === message.guild.id) continue;
                 const roleName = role.name.trim();
-                // التحقق إذا تطابق الاسم كامل أو بدأ بأول الحرفين
                 if (roleName.toLowerCase() === roleSearchText.toLowerCase() || roleName.toLowerCase().startsWith(roleSearchText.toLowerCase())) {
                     foundRole = role;
                     break;
