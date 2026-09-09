@@ -44,11 +44,11 @@ const CONFIG = {
     
     supportRole: "1547161341045776484", 
     adminControlRole: "1545853891101466746", 
+    ticketSupportPingRole: "1545853407825231962",
     
     roleRequestRoom: "1546928048174014566", 
     supportLogRoom: "1546933674673447042",
 
-    // إعدادات الرومات السرية الجديدة
     secretRoomSetupChannel: "1545856705110220883",
     secretRoomVoiceLog: "1545857287934054480",
     secretRoomRequestsChannel: "1545859174750224454",
@@ -57,10 +57,8 @@ const CONFIG = {
     deleteRoomVoiceLog: "1547232423522082816",
     deleteRoomRequestsChannel: "1547233488418246796",
 
-    // روم إرسال الصح والخطأ وإنشاء الروم بالترتيب
     secretApprovalChannel: "1545859261526048890",
 
-    // كاتيجوريات الرومات السرية بالترتيب
     secretCategories: [
         "1545859590506152096",
         "1545859642721177611",
@@ -73,6 +71,9 @@ const CONFIG = {
         "15460051984588890"
     ]
 };
+
+// لتتبع وقت آخر استدعاء لكل تكت (Cooldown)
+const summonCooldowns = new Map();
 
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
@@ -94,7 +95,91 @@ client.on('messageCreate', async (message) => {
     const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
 
-    // أمر إرسال رسالة وزر إنشاء الروم السري
+    // أمر قفل الروم
+    if (message.content.trim() === "قفل" && hasAdminRole) {
+        try { await message.delete(); } catch(e) {}
+        await message.channel.permissionOverwrites.edit(message.guild.id, { SendMessages: false });
+        return;
+    }
+
+    // أمر فتح الروم
+    if (message.content.trim() === "فتح" && hasAdminRole) {
+        try { await message.delete(); } catch(e) {}
+        await message.channel.permissionOverwrites.edit(message.guild.id, { SendMessages: null });
+        return;
+    }
+
+    // أمر مسح الرسائل
+    if (message.content.startsWith("مسح") && hasAdminRole) {
+        try { await message.delete(); } catch(e) {}
+        const args = message.content.split(" ");
+        const count = parseInt(args[1]);
+
+        if (isNaN(count)) {
+            const fetched = await message.channel.messages.fetch({ limit: 100 });
+            await message.channel.bulkDelete(fetched, true).catch(() => {});
+        } else {
+            let deletedCount = 0;
+            let remaining = count;
+            while (remaining > 0) {
+                const fetchSize = remaining > 100 ? 100 : remaining;
+                const fetched = await message.channel.messages.fetch({ limit: fetchSize });
+                if (fetched.size === 0) break;
+                const deleted = await message.channel.bulkDelete(fetched, true).catch(() => {});
+                if (!deleted || deleted.size === 0) break;
+                deletedCount += deleted.size;
+                remaining -= deleted.size;
+                if (fetched.size < fetchSize) break;
+            }
+        }
+        return;
+    }
+
+    // نظام إعطاء أو سحب الرول عبر الرد على الرسائل
+    if (message.reference && hasSupportRole) {
+        const content = message.content.trim();
+        // نفترض أن الصيغة تكون بذكر اسم الرول أو أمر يحدد الرول المطلوب إعطاؤه/سحبه
+        if (content.includes("رول") || content.includes("البرايفت") || content.includes("المخفي")) {
+            try {
+                const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
+                const targetMember = await message.guild.members.fetch(repliedMessage.author.id);
+                
+                // الرول المستهدف هو CONFIG.supportRole أو الرول المذكور
+                const targetRole = message.guild.roles.cache.get(CONFIG.supportRole);
+                if (!targetRole) return;
+
+                const hasRoleAlready = targetMember.roles.cache.has(targetRole.id);
+                const actionType = hasRoleAlready ? 'remove' : 'add'; // إذا عنده رول يصير تل (سحب)، إذا ما عنده يصير إعطاء
+
+                const logChannel = message.guild.channels.cache.get(CONFIG.roleRequestRoom);
+                if (logChannel) {
+                    const embed = new EmbedBuilder()
+                        .setTitle(actionType === 'add' ? "طلب إعطاء رول" : "طلب تل رول")
+                        .setDescription(`المعطا/المسحوب منه: ${targetMember}\nبواسطة السبورت: ${message.author}\nالرول المطلوب: ${targetRole.name}`)
+                        .setColor(0x2f3136);
+
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`role_accept_${targetMember.id}_${targetRole.id}_${actionType}_${message.author.id}`)
+                            .setLabel('✅')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId(`role_deny_${targetMember.id}_${targetRole.id}_${actionType}_${message.author.id}`)
+                            .setLabel('❌')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
+
+                    await logChannel.send({ embeds: [embed], components: [row] });
+                    await message.react('✅').catch(() => {});
+                }
+            } catch (err) {
+                console.error(err);
+                await message.react('❌').catch(() => {});
+            }
+            return;
+        }
+    }
+
     if (message.content.trim() === "!setup_secret" && hasAdminRole) {
         if (message.channel.id !== CONFIG.secretRoomSetupChannel) {
             await message.reply(`هذا الأمر مخصص فقط للروم <#${CONFIG.secretRoomSetupChannel}>`);
@@ -117,7 +202,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر إرسال رسالة وزر حذف الروم
     if (message.content.trim() === "!setup_delete" && hasAdminRole) {
         if (message.channel.id !== CONFIG.deleteRoomSetupChannel) {
             await message.reply(`هذا الأمر مخصص فقط للروم <#${CONFIG.deleteRoomSetupChannel}>`);
@@ -140,7 +224,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // التعامل مع استقبال طلبات إنشاء الروم في روم wef-
     if (message.channel.name.startsWith("wef-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -187,7 +270,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // التعامل مع استقبال سبب حذف الروم في delete-room-
     if (message.channel.name.startsWith("delete-room-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -249,7 +331,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    if (message.content.trim() === "!setup_ticket" && hasAdminRole) {
+    if (cleanMsg === "!setup_ticket" && hasAdminRole) {
         const channel = message.guild.channels.cache.get(CONFIG.ticketSetupRoom);
         if (channel) {
             const embed = new EmbedBuilder()
@@ -325,6 +407,163 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
+    // إنشاء التكت
+    if (interaction.customId === 'create_ticket_btn') {
+        const guild = interaction.guild;
+        const user = interaction.user;
+
+        const existingTicket = guild.channels.cache.find(c => c.name === `ticket-${user.username.toLowerCase()}` && c.type === 0);
+        if (existingTicket) {
+            await interaction.reply({ content: "لديك تذكرة مفتوحة بالفعل.", ephemeral: true });
+            return;
+        }
+
+        try {
+            const ticketChannel = await guild.channels.create({
+                name: `ticket-${user.username}`,
+                type: 0,
+                parent: CONFIG.ticketCategory1,
+                permissionOverwrites: [
+                    {
+                        id: guild.id,
+                        Deny: [PermissionFlagsBits.ViewChannel]
+                    },
+                    {
+                        id: user.id,
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    },
+                    {
+                        id: CONFIG.supportRole,
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    },
+                    {
+                        id: CONFIG.ticketSupportPingRole,
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    }
+                ]
+            });
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`summon_ticket_${user.id}`)
+                    .setLabel('استدعاء')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('summon_admin')
+                    .setLabel('استدعاء الإدارة')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+            await ticketChannel.send({
+                content: `<@&${CONFIG.ticketSupportPingRole}> <@&${CONFIG.adminControlRole}>\n\n**اكتب مشكلتك قبل نجي**`,
+                components: [row]
+            });
+
+            await interaction.reply({ content: `تم إنشاء تذكرتك بنجاح: ${ticketChannel}`, ephemeral: true });
+        } catch (err) {
+            console.error(err);
+            await interaction.reply({ content: "حدث خطأ أثناء إنشاء التكت.", ephemeral: true });
+        }
+        return;
+    }
+
+    // زر استدعاء السبورت مع كولداون 5 دقائق
+    if (interaction.customId.startsWith('summon_ticket_')) {
+        const ticketOwnerId = interaction.customId.split('_')[2];
+        const member = interaction.member;
+
+        // التحقق من أن المستخدم لديه رول الدعم المخصص لاستخدام زر الاستدعاء
+        if (!member.roles.cache.has(CONFIG.ticketSupportPingRole) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
+            await interaction.reply({ content: "ما معك رول الادارة/السبورت المخول بذلك.", ephemeral: true });
+            return;
+        }
+
+        const channelId = interaction.channel.id;
+        const now = Date.now();
+        const cooldownTime = 5 * 60 * 1000; // 5 دقائق
+
+        if (summonCooldowns.has(channelId)) {
+            const expirationTime = summonCooldowns.get(channelId);
+            if (now < expirationTime) {
+                const timeLeft = expirationTime - now;
+                const minutes = Math.floor(timeLeft / 60000);
+                const seconds = Math.floor((timeLeft % 60000) / 1000);
+                await interaction.reply({ 
+                    content: `لازم تنتظر ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`, 
+                    ephemeral: true 
+                });
+                return;
+            }
+        }
+
+        summonCooldowns.set(channelId, now + cooldownTime);
+
+        // إرسال رسالة بالخاص لصاحب التكت
+        try {
+            const ticketOwner = await interaction.guild.members.fetch(ticketOwnerId).catch(() => null);
+            if (ticketOwner) {
+                await ticketOwner.send("أبغاك الشخص حاول قبل خمس دقايق في التكت الخاص بك.").catch(() => {});
+            }
+        } catch (e) {}
+
+        await interaction.reply({ content: "تم إرسال تنبيه الاستدعاء بنجاح.", ephemeral: true });
+        return;
+    }
+
+    // زر استدعاء الإدارة (متاح للجميع)
+    if (interaction.customId === 'summon_admin') {
+        const sentMsg = await interaction.channel.send({ content: `<@&${CONFIG.adminControlRole}>` });
+        setTimeout(async () => {
+            try { await sentMsg.delete(); } catch(e) {}
+        }, 3000);
+
+        await interaction.reply({ content: "تم منشن الإدارة بنجاح.", ephemeral: true });
+        return;
+    }
+
+    // التعامل مع أزرار قبول/رفض إعطاء أو سحب الرولات
+    if (interaction.customId.startsWith('role_accept_') || interaction.customId.startsWith('role_deny_')) {
+        const parts = interaction.customId.split('_');
+        const actionStatus = parts[1]; // accept or deny
+        const targetUserId = parts[2];
+        const roleId = parts[3];
+        const actionType = parts[4]; // add or remove
+        const supportUserId = parts[5];
+
+        const targetMember = await interaction.guild.members.fetch(targetUserId).catch(() => null);
+        const supportMember = await interaction.guild.members.fetch(supportUserId).catch(() => null);
+        const role = interaction.guild.roles.cache.get(roleId);
+
+        if (actionStatus === 'deny') {
+            try {
+                if (supportMember) {
+                    await supportMember.send(`تم رفض طلبك لتل/إعطاء رول لـ <@${targetUserId}> من قبل الإدارة.`);
+                }
+            } catch(e) {}
+            await interaction.update({ content: "تم رفض الطلب.", components: [] });
+            return;
+        }
+
+        if (actionStatus === 'accept') {
+            if (targetMember && role) {
+                try {
+                    if (actionType === 'add') {
+                        await targetMember.roles.add(role);
+                        if (targetMember) await targetMember.send(`تم قبول طلبك وتم إعطاؤك الرول بنجاح!`).catch(() => {});
+                    } else {
+                        await targetMember.roles.remove(role);
+                        if (targetMember) await targetMember.send(`تم قبول طلبك وتم سحب الرول منك.`).catch(() => {});
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+            await interaction.update({ content: "تمت الموافقة وتطبيق الإجراء بنجاح.", components: [] });
+            return;
+        }
+        return;
+    }
+
     if (interaction.customId === 'open_wef_voice') {
         const guild = interaction.guild;
         const user = interaction.user;
@@ -358,7 +597,6 @@ client.on('interactionCreate', async (interaction) => {
 
             await interaction.reply({ content: `تم إنشاء روم الطلب الخاص بك: ${wefChannel}`, ephemeral: true });
         } catch (err) {
-            console.error(err);
             await interaction.reply({ content: "حدث خطأ أثناء إنشاء الروم.", ephemeral: true });
         }
         return;
@@ -422,7 +660,6 @@ client.on('interactionCreate', async (interaction) => {
 
         if (action === 'approve') {
             const guild = interaction.guild;
-            
             const requestMsg = interaction.message;
             const contentBody = requestMsg.content.split('\nبواسطة')[0].trim();
 
