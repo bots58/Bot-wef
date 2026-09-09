@@ -43,7 +43,7 @@ const CONFIG = {
     ticketCategory2: "1545853004673196172", 
     
     supportRole: "1547161341045776484", 
-    adminControlRole: "1545853891101466746", // رول الإدارة / الأونر المحدد
+    adminControlRole: "1545853891101466746", 
     
     roleRequestRoom: "1546928048174014566", 
     supportLogRoom: "1546933674673447042" 
@@ -113,11 +113,11 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر "إخفاء" يعمل في أي روم (شات أو فويس) ويمنع رول غير مفعل من رؤيته
-    if (message.content.trim() === "إخفاء" && hasAdminRole) {
+    // أمر إخفاء أو اخفا (يحذف الرسالة ويخفي الروم بدون إرسال أي رد)
+    const cleanMsg = message.content.trim();
+    if ((cleanMsg === "إخفاء" || cleanMsg === "اخفا") && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         await message.channel.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: false });
-        await message.channel.send("تم إخفاء هذا الروم عن رول غير مفعل.");
         return;
     }
 
@@ -146,7 +146,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر send المعدل كلياً لإرسال الصور بشكل بشري طبيعي 100% بدون 0 bytes
+    // أمر send لإرسال الصور والنصوص بشكل بشري طبيعي بدون 0 bytes
     if (message.content.startsWith("send") && hasSupportRole) {
         const textToSend = message.content.slice(4).trim();
         const filesToSend = [];
@@ -281,7 +281,7 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// التفاعل مع الأزرار
+// التعامل مع الأزرار والتفاعلات
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
@@ -342,7 +342,7 @@ client.on('interactionCreate', async (interaction) => {
                 new ButtonBuilder()
                     .setCustomId(`call_owner_${user.id}`)
                     .setLabel('استدعاء')
-                    .setStyle(ButtonStyle.Primary)
+                    .setStyle(ButtonStyle.Secondary)
             );
 
             await ticketChannel.send({
@@ -358,8 +358,17 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // زر استدعاء صاحب التكت في الخاص
+    // زر استدعاء صاحب التكت (مخصص للسبورت وشكله رمادي)
     if (interaction.customId.startsWith('call_owner_')) {
+        const hasSupportPerms = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || 
+                                interaction.member.roles.cache.has(CONFIG.supportRole) || 
+                                interaction.member.roles.cache.has(CONFIG.adminControlRole);
+
+        if (!hasSupportPerms) {
+            await interaction.reply({ content: "هذا الزر مخصص لفريق الدعم فقط.", ephemeral: true });
+            return;
+        }
+
         const ownerId = interaction.customId.split('_')[2];
         const owner = await interaction.guild.members.fetch(ownerId).catch(() => null);
 
