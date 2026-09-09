@@ -93,6 +93,22 @@ client.on('messageCreate', async (message) => {
 
     const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
+    const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) || hasAdminRole;
+
+    // شرط إغلاق التكت تلقائياً إذا كان الروم يبدأ بـ ticket- وصاحب الرسالة معه رول ticketSupportPingRole
+    if (message.channel.name.startsWith("ticket-") && hasTicketSupportRole) {
+        const msgContent = message.content.trim();
+        const closeKeywords = ["اغلاق", "إغلاق", "آغلاق", "أغلاق"];
+        if (closeKeywords.includes(msgContent)) {
+            try { await message.delete(); } catch(e) {}
+            setTimeout(async () => {
+                try {
+                    await message.channel.delete();
+                } catch(e) {}
+            }, 500); // يحذف التكت خلال أقل من ثانية (نصف ثانية)
+            return;
+        }
+    }
 
     if (message.content.trim() === "قفل" && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
@@ -163,7 +179,6 @@ client.on('messageCreate', async (message) => {
                     await logChannel.send({ embeds: [embed], components: [row] });
                     await message.react('✅').catch(() => {});
 
-                    // إرسال رسالة في روم الـ supportLogRoom يطلب الدليل مع منشن السبورت وحذفها بعد 15 ثانية
                     const guideChannel = message.guild.channels.cache.get(CONFIG.supportLogRoom);
                     if (guideChannel) {
                         const guideMsgContent = actionType === 'add' 
