@@ -545,10 +545,6 @@ client.on('interactionCreate', async (interaction) => {
                         Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     },
                     {
-                        id: CONFIG.supportRole,
-                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    },
-                    {
                         id: CONFIG.ticketSupportPingRole,
                         Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     }
@@ -631,7 +627,7 @@ client.on('interactionCreate', async (interaction) => {
         const parts = interaction.customId.split('_');
         const actionStatus = parts[1];
         const targetUserId = parts[2];
-        const roleId = parts[3];
+        .roleId = parts[3];
         const actionType = parts[4];
         const supportUserId = parts[5];
 
@@ -843,7 +839,7 @@ client.on('interactionCreate', async (interaction) => {
 
         const targetUser = await interaction.guild.members.fetch(targetUserId).catch(() => null);
 
-        if (action === 'deny') {
+        if (action === `deny`) {
             try {
                 if (targetUser) {
                     await targetUser.send("تم رفض طلبك لحذف الروم");
@@ -865,7 +861,7 @@ client.on('interactionCreate', async (interaction) => {
             }
 
             await interaction.update({ content: "تمت الموافقة وحذف الروم بنجاح.", components: [] });
-            try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
+            try { await interaction.guild.channels.cache.get(originalChannelId)?.get()?.delete(); } catch(e) {}
         }
         return;
     }
