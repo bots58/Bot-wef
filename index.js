@@ -35,8 +35,8 @@ const client = new Client({
 
 const CONFIG = {
     verificationRoom: "1545846837192429578",
-    verifiedRole: "1545848708921425920", 
-    unverifiedRole: "1545848907156820100", 
+    verifiedRole: "1545848708921425920", // الرول الذي يتم إعطاؤه عند التفعيل
+    unverifiedRole: "1545848907156820100", // الرول التلقائي عند الدخول والذي يزال عند التفعيل
     
     ticketSetupRoom: "1545847197768360000",
     ticketCategory1: "1545852986188628108", 
@@ -53,14 +53,14 @@ client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
-// منح رول غير مفعل فور دخول أي عضو (تأكد من تفعيل Server Members Intent في بورتال ديسكورد)
+// منح الرول غير المفعل تلقائياً وفوراً لأي عضو جديد يدخل السيرفر
 client.on('guildMemberAdd', async (member) => {
     try {
         if (CONFIG.unverifiedRole) {
             await member.roles.add(CONFIG.unverifiedRole);
         }
     } catch (err) {
-        console.error("Error adding join role:", err);
+        console.error("Error adding join role on member add:", err);
     }
 });
 
@@ -216,7 +216,7 @@ client.on('messageCreate', async (message) => {
     if (message.content.startsWith("رول") && hasSupportRole) {
         let targetMember = message.mentions.members.first();
 
-        // إذا لم يكن هناك منشن، تحقق مما إذا كان المستخدم قد رد على رسالة (Reply)
+        // دعم الرد على الرسالة (Reply) إذا لم يكن هناك منشن
         if (!targetMember && message.reference) {
             try {
                 const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
@@ -246,7 +246,7 @@ client.on('messageCreate', async (message) => {
         const hasRoleAlready = targetMember.roles.cache.has(foundRole.id);
 
         if (hasRoleAlready) {
-            // طلب تل (سحب) الرول - منشن الشخص الذي كتب أمر الرول حصرياً
+            // الشخص معه الرول مسبقاً -> طلب تل (سحب) الرول
             const logRoom = message.guild.channels.cache.get(CONFIG.supportLogRoom);
             if (logRoom) {
                 const warningMsg = await logRoom.send(`${message.author} اكتب دليلك لتل الرول`);
@@ -286,7 +286,7 @@ client.on('messageCreate', async (message) => {
                 });
             }
         } else {
-            // طلب إعطاء رول - منشن الشخص الذي كتب أمر الرول حصرياً
+            // الشخص ليس معه الرول -> طلب إعطاء رول
             const logRoom = message.guild.channels.cache.get(CONFIG.supportLogRoom);
             if (logRoom) {
                 const warningMsg = await logRoom.send(`${message.author} اكتب دليلك`);
@@ -348,7 +348,7 @@ client.on('messageCreate', async (message) => {
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
-    // زر التفعيل: إزالة رول 1545848907156820100 فقط عن الشخص الذي ضغط الزر حصرياً
+    // زر التفعيل: إزالة رول غير المفعل وإضافة رول المفعل الأساسي
     if (interaction.customId === 'verify_btn') {
         const member = interaction.member;
         try {
