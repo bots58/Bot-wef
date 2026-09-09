@@ -53,7 +53,7 @@ client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
-// منح رول 1545848907156820100 تلقائياً وفوراً لأي عضو جديد يدخل السيرفر
+// منح رول غير مفعل فور دخول أي عضو (تأكد من تفعيل Server Members Intent في بورتال ديسكورد)
 client.on('guildMemberAdd', async (member) => {
     try {
         if (CONFIG.unverifiedRole) {
@@ -153,7 +153,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر send لإرسال الصور والنصوص بشكل بشري طبيعي بدون 0 bytes
+    // أمر send لإرسال الصور والنصوص
     if (message.content.startsWith("send") && hasSupportRole) {
         const textToSend = message.content.slice(4).trim();
         const filesToSend = [];
@@ -212,9 +212,20 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // نظام طلبات الرولات (مع دعم سحب الرول إذا كان العضو يملكه مسبقاً)
+    // نظام طلبات الرولات (مع دعم المنشن أو الرد على الرسالة Reply)
     if (message.content.startsWith("رول") && hasSupportRole) {
-        const targetMember = message.mentions.members.first();
+        let targetMember = message.mentions.members.first();
+
+        // إذا لم يكن هناك منشن، تحقق مما إذا كان المستخدم قد رد على رسالة (Reply)
+        if (!targetMember && message.reference) {
+            try {
+                const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
+                if (repliedMessage) {
+                    targetMember = await message.guild.members.fetch(repliedMessage.author.id).catch(() => null);
+                }
+            } catch (e) {}
+        }
+
         if (!targetMember) return;
 
         const roleQuery = message.content.replace("رول", "").replace(/<@!?\d+>/g, "").trim();
@@ -235,10 +246,10 @@ client.on('messageCreate', async (message) => {
         const hasRoleAlready = targetMember.roles.cache.has(foundRole.id);
 
         if (hasRoleAlready) {
-            // الشخص معه الرول مسبقاً -> طلب تل (سحب) الرول
+            // طلب تل (سحب) الرول - منشن الشخص الذي كتب أمر الرول حصرياً
             const logRoom = message.guild.channels.cache.get(CONFIG.supportLogRoom);
             if (logRoom) {
-                const warningMsg = await logRoom.send(`${targetMember} اكتب دليلك لتل الرول`);
+                const warningMsg = await logRoom.send(`${message.author} اكتب دليلك لتل الرول`);
                 setTimeout(() => {
                     warningMsg.delete().catch(() => {});
                 }, 15000);
@@ -275,10 +286,10 @@ client.on('messageCreate', async (message) => {
                 });
             }
         } else {
-            // الشخص ليس معه الرول -> طلب إعطاء رول بالطريقة المعتادة
+            // طلب إعطاء رول - منشن الشخص الذي كتب أمر الرول حصرياً
             const logRoom = message.guild.channels.cache.get(CONFIG.supportLogRoom);
             if (logRoom) {
-                const warningMsg = await logRoom.send(`${targetMember} اكتب دليلك`);
+                const warningMsg = await logRoom.send(`${message.author} اكتب دليلك`);
                 setTimeout(() => {
                     warningMsg.delete().catch(() => {});
                 }, 15000);
@@ -337,7 +348,7 @@ client.on('messageCreate', async (message) => {
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
-    // زر التفعيل: إزالة رول 1545848907156820100 فقط عن الشخص الذي ضغط الزر حصرياً وبدون أخطاء
+    // زر التفعيل: إزالة رول 1545848907156820100 فقط عن الشخص الذي ضغط الزر حصرياً
     if (interaction.customId === 'verify_btn') {
         const member = interaction.member;
         try {
@@ -414,7 +425,7 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // زر استدعاء صاحب التكت (مخصص للسبورت وشكله رمادي)
+    // زر استدعاء صاحب التكت
     if (interaction.customId.startsWith('call_owner_')) {
         const hasSupportPerms = interaction.member.permissions.has(PermissionFlagsBits.Administrator) || 
                                 interaction.member.roles.cache.has(CONFIG.supportRole) || 
