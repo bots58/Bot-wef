@@ -53,16 +53,14 @@ const CONFIG = {
     roleRequestRoom: "1546928048174014566", 
     supportLogRoom: "1546933674673447042",
 
-    // إعدادات الرومات السرية والطلبات
     secretRoomSetupChannel: "1545856705110220883",
     secretRoomVoiceLog: "1545857287934054480",
-    secretRoomRequestsChannel: "1545859261526048890", // الأيدي الجديد المخصص لطلبات الرومات السرية
+    secretRoomRequestsChannel: "1545859261526048890",
 
     deleteRoomSetupChannel: "1547232353095778355",
     deleteRoomVoiceLog: "1547232423522082816",
     deleteRoomRequestsChannel: "1547233488418246796",
 
-    // كاتيجوريات الرومات السرية بالترتيب
     secretCategories: [
         "1545859590506152096",
         "1545859642721177611",
@@ -76,7 +74,6 @@ const CONFIG = {
     ]
 };
 
-// دالة وضع الحقوق على الصور
 async function addWatermarkToImage(inputBuffer) {
     try {
         const image = await loadImage(inputBuffer);
@@ -85,13 +82,11 @@ async function addWatermarkToImage(inputBuffer) {
         
         ctx.drawImage(image, 0, 0, image.width, image.height);
         
-        // إعدادات نص الحقوق المتكرر بنفس الشكل المائل أو الموزع
         ctx.font = `bold ${Math.floor(image.width / 12)}px sans-serif`;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // توزيع الحقوق في أماكن متعددة كما طلبت
         const positions = [
             { x: image.width * 0.5, y: image.height * 0.3 },
             { x: image.width * 0.5, y: image.height * 0.55 },
@@ -112,10 +107,8 @@ async function addWatermarkToImage(inputBuffer) {
     }
 }
 
-// دالة وضع الحقوق على مقاطع الفيديو
 async function addWatermarkToVideo(inputPath, outputPath) {
     return new Promise((resolve, reject) => {
-        // فلتر رسم النص (Watermark) المتعدد عبر ffmpeg
         const drawTextFilter = 
             "drawtext=text='Fire Files':fontcolor=white@0.35:fontsize=h/12:x=(w-text_w)/2:y=h*0.3," +
             "drawtext=text='Fire Files':fontcolor=white@0.35:fontsize=h/12:x=(w-text_w)/2:y=h*0.55," +
@@ -133,7 +126,6 @@ async function addWatermarkToVideo(inputPath, outputPath) {
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
     
-    // إرسال رسائل الإعداد تلقائياً إذا لم تكن موجودة
     try {
         const secretChannel = client.channels.cache.get(CONFIG.secretRoomSetupChannel);
         if (secretChannel) {
@@ -177,7 +169,6 @@ client.on('messageCreate', async (message) => {
     const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
 
-    // التعامل مع استقبال طلبات إنشاء الروم في روم wef- وإرسالها للروم الجديد المحدد
     if (message.channel.name.startsWith("wef-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -214,7 +205,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // التعامل مع استقبال سبب حذف الروم في delete-room-
     if (message.channel.name.startsWith("delete-room-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -242,6 +232,13 @@ client.on('messageCreate', async (message) => {
         }
 
         try { await message.reply("تم إرسال طلبك للإدارة للمراجعة."); } catch (e) {}
+        
+        // حذف روم الشخص المؤقت بعد 90 ثانية من إرسال الطلب
+        const tempDelChannel = message.channel;
+        setTimeout(async () => {
+            try { await tempDelChannel.delete(); } catch (e) {}
+        }, 90000);
+
         return;
     }
 
@@ -280,7 +277,6 @@ client.on('messageCreate', async (message) => {
 
     if (message.content.startsWith("send") && hasSupportRole) {
         const textToSend = message.content.slice(4).trim();
-        const filesToSend = [];
         try { await message.delete(); } catch(e) {}
         if (textToSend) await message.channel.send({ content: textToSend });
         return;
@@ -365,7 +361,6 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // الموافقة على إنشاء الروم السري مع معالجة وإضافة الحقوق للصور والفيديوهات
     if (interaction.customId.startsWith('approve_wef_') || interaction.customId.startsWith('deny_wef_')) {
         const parts = interaction.customId.split('_');
         const action = parts[0];
