@@ -117,7 +117,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر إرسال رسالة وزر حذف الروم (تم تعديل "تحزه" إلى "تعزه")
+    // أمر إرسال رسالة وزر حذف الروم
     if (message.content.trim() === "!setup_delete" && hasAdminRole) {
         if (message.channel.id !== CONFIG.deleteRoomSetupChannel) {
             await message.reply(`هذا الأمر مخصص فقط للروم <#${CONFIG.deleteRoomSetupChannel}>`);
@@ -155,10 +155,8 @@ client.on('messageCreate', async (message) => {
             }
         }
 
-        // إرسال رسالة مؤقتة للمستخدم بأن طلبه أرسل للإدارة
         await message.reply({ content: "تم ارسال طلبك للادارة واذا تم الموافقة عليها بيتم انشاء الروم" });
 
-        // إرسال الطلب لروم طلبات الإدارة المحدد (1545859261526048890) مع أزرار الصح والخطأ
         const requestChannel = message.guild.channels.cache.get(CONFIG.secretApprovalChannel);
         if (requestChannel) {
             const row = new ActionRowBuilder().addComponents(
@@ -179,7 +177,6 @@ client.on('messageCreate', async (message) => {
             });
         }
 
-        // جدولة حذف روم المؤقت wef- بعد 90 ثانية
         const tempChannel = message.channel;
         setTimeout(async () => {
             try {
@@ -229,7 +226,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // الأوامر الأخرى (ver, setup_ticket, send, bc, رول, إلخ)
     const cleanMsg = message.content.trim();
     if (cleanMsg === "ver" && hasAdminRole) {
         if (message.channel.id !== CONFIG.verificationRoom) {
@@ -313,7 +309,6 @@ client.on('messageCreate', async (message) => {
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
-    // زر التفعيل
     if (interaction.customId === 'verify_btn') {
         const member = interaction.member;
         try {
@@ -330,7 +325,6 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // زر إنشاء روم سري مؤقت wef-
     if (interaction.customId === 'open_wef_voice') {
         const guild = interaction.guild;
         const user = interaction.user;
@@ -370,7 +364,6 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // زر فتح روم حذف الروم delete-room-
     if (interaction.customId === 'open_delete_voice') {
         const guild = interaction.guild;
         const user = interaction.user;
@@ -410,7 +403,6 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // الموافقة على إنشاء الروم السري وتوزيعها تلقائياً بالترتيب مع دمج الحقوق (سواء صورة أو مقطع فيديو بدون إتلاف أصل الملف)
     if (interaction.customId.startsWith('approve_wef_') || interaction.customId.startsWith('deny_wef_')) {
         const parts = interaction.customId.split('_');
         const action = parts[0];
@@ -432,15 +424,13 @@ client.on('interactionCreate', async (interaction) => {
             const guild = interaction.guild;
             
             const requestMsg = interaction.message;
-            const contentBody = requestMsg.content.split('\nبواسطة')[0];
+            const contentBody = requestMsg.content.split('\nبواسطة')[0].trim();
 
             const filesToSend = [];
             for (const att of requestMsg.attachments.values()) {
                 try {
                     const response = await fetch(att.url);
                     const buffer = Buffer.from(await response.arrayBuffer());
-                    
-                    // نحافظ على نفس الملف الأصلي مع إمكانية تمريره (تصميم الحقوق الثابت الخاص بك يتم تضمينه هنا بدون حذف الملف)
                     filesToSend.push(new AttachmentBuilder(buffer, { name: att.name || 'media.png' }));
                 } catch (err) {}
             }
@@ -481,16 +471,20 @@ client.on('interactionCreate', async (interaction) => {
                     ]
                 });
 
-                await newSecretRoom.send("This room is for those over 18 years old");
-                if (contentBody || filesToSend.length > 0) {
+                const embed18 = new EmbedBuilder()
+                    .setDescription("This room is for those over 18 years old")
+                    .setColor(0x2f3136);
+
+                await newSecretRoom.send({ embeds: [embed18] });
+
+                if (filesToSend.length > 0) {
                     await newSecretRoom.send({
-                        content: contentBody || undefined,
                         files: filesToSend
                     });
                 }
 
                 await interaction.update({ content: `تم الموافقة وإنشاء الروم بنجاح: ${newSecretRoom}`, components: [] });
-                try { await guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
+                try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
             } catch (err) {
                 console.error(err);
                 await interaction.reply({ content: "حدث خطأ أثناء إنشاء الروم السري.", ephemeral: true });
@@ -499,7 +493,6 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // الموافقة أو الرفض لحذف الروم
     if (interaction.customId.startsWith('approve_del_') || interaction.customId.startsWith('deny_del_')) {
         const parts = interaction.customId.split('_');
         const action = parts[0];
