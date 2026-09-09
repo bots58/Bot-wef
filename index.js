@@ -22,6 +22,11 @@ const {
     AttachmentBuilder
 } = require('discord.js');
 
+const { createCanvas, loadImage } = require('canvas');
+const ffmpeg = require('fluent-ffmpeg');
+const fs = require('fs');
+const path = require('path');
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -48,10 +53,10 @@ const CONFIG = {
     roleRequestRoom: "1546928048174014566", 
     supportLogRoom: "1546933674673447042",
 
-    // إعدادات الرومات السرية الجديدة
+    // إعدادات الرومات السرية والطلبات
     secretRoomSetupChannel: "1545856705110220883",
     secretRoomVoiceLog: "1545857287934054480",
-    secretRoomRequestsChannel: "1545859174750224454",
+    secretRoomRequestsChannel: "1545859261526048890", // الأيدي الجديد المخصص لطلبات الرومات السرية
 
     deleteRoomSetupChannel: "1547232353095778355",
     deleteRoomVoiceLog: "1547232423522082816",
@@ -66,13 +71,96 @@ const CONFIG = {
         "1545859775844065433",
         "1545859961202937907",
         "1545859984833773588",
-        "15460027355504681", // تم تصحيح طول الأيدي الاحتياطي بناءً على طلبك
+        "15460027355504681",
         "15460051984588890"
     ]
 };
 
+// دالة وضع الحقوق على الصور
+async function addWatermarkToImage(inputBuffer) {
+    try {
+        const image = await loadImage(inputBuffer);
+        const canvas = createCanvas(image.width, image.height);
+        const ctx = canvas.getContext('2d');
+        
+        ctx.drawImage(image, 0, 0, image.width, image.height);
+        
+        // إعدادات نص الحقوق المتكرر بنفس الشكل المائل أو الموزع
+        ctx.font = `bold ${Math.floor(image.width / 12)}px sans-serif`;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // توزيع الحقوق في أماكن متعددة كما طلبت
+        const positions = [
+            { x: image.width * 0.5, y: image.height * 0.3 },
+            { x: image.width * 0.5, y: image.height * 0.55 },
+            { x: image.width * 0.5, y: image.height * 0.8 },
+            { x: image.width * 0.5, y: image.height * 0.9 }
+        ];
+
+        for (const pos of positions) {
+            ctx.save();
+            ctx.translate(pos.x, pos.y);
+            ctx.fillText("Fire Files", 0, 0);
+            ctx.restore();
+        }
+
+        return canvas.toBuffer('image/png');
+    } catch (e) {
+        return inputBuffer;
+    }
+}
+
+// دالة وضع الحقوق على مقاطع الفيديو
+async function addWatermarkToVideo(inputPath, outputPath) {
+    return new Promise((resolve, reject) => {
+        // فلتر رسم النص (Watermark) المتعدد عبر ffmpeg
+        const drawTextFilter = 
+            "drawtext=text='Fire Files':fontcolor=white@0.35:fontsize=h/12:x=(w-text_w)/2:y=h*0.3," +
+            "drawtext=text='Fire Files':fontcolor=white@0.35:fontsize=h/12:x=(w-text_w)/2:y=h*0.55," +
+            "drawtext=text='Fire Files':fontcolor=white@0.35:fontsize=h/12:x=(w-text_w)/2:y=h*0.8," +
+            "drawtext=text='Fire Files':fontcolor=white@0.35:fontsize=h/12:x=(w-text_w)/2:y=h*0.9";
+
+        ffmpeg(inputPath)
+            .outputOptions('-vf', drawTextFilter)
+            .save(outputPath)
+            .on('end', () => resolve(outputPath))
+            .on('error', (err) => reject(err));
+    });
+}
+
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
+    
+    // إرسال رسائل الإعداد تلقائياً إذا لم تكن موجودة
+    try {
+        const secretChannel = client.channels.cache.get(CONFIG.secretRoomSetupChannel);
+        if (secretChannel) {
+            const messages = await secretChannel.messages.fetch({ limit: 5 });
+            if (!messages.some(m => m.author.id === client.user.id)) {
+                const embed = new EmbedBuilder().setDescription("انشاء رومك على من تكره بسرية تامه").setColor(0x2f3136);
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('open_wef_voice').setLabel('انشاء روم').setStyle(ButtonStyle.Secondary)
+                );
+                await secretChannel.send({ embeds: [embed], components: [row] });
+            }
+        }
+
+        const deleteChannel = client.channels.cache.get(CONFIG.deleteRoomSetupChannel);
+        if (deleteChannel) {
+            const messages = await deleteChannel.messages.fetch({ limit: 5 });
+            if (!messages.some(m => m.author.id === client.user.id)) {
+                const embed = new EmbedBuilder().setDescription("إذا تبي تحذف روم شخص تعزه فك روم سري من تحت").setColor(0x2f3136);
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('open_delete_voice').setLabel('حذف روم').setStyle(ButtonStyle.Secondary)
+                );
+                await deleteChannel.send({ embeds: [embed], components: [row] });
+            }
+        }
+    } catch (e) {
+        console.error("Auto setup error:", e);
+    }
 });
 
 client.on('guildMemberAdd', async (member) => {
@@ -80,9 +168,7 @@ client.on('guildMemberAdd', async (member) => {
         if (CONFIG.unverifiedRole) {
             await member.roles.add(CONFIG.unverifiedRole);
         }
-    } catch (err) {
-        console.error("Error handling guildMemberAdd role assignment safely:", err);
-    }
+    } catch (err) {}
 });
 
 client.on('messageCreate', async (message) => {
@@ -91,53 +177,7 @@ client.on('messageCreate', async (message) => {
     const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
 
-    // أمر إرسال رسالة وزر إنشاء الروم السري
-    if (message.content.trim() === "!setup_secret" && hasAdminRole) {
-        if (message.channel.id !== CONFIG.secretRoomSetupChannel) {
-            await message.reply(`هذا الأمر مخصص فقط للروم <#${CONFIG.secretRoomSetupChannel}>`);
-            return;
-        }
-
-        const embed = new EmbedBuilder()
-            .setDescription("انشاء رومك على من تكره بسرية تامه")
-            .setColor(0x2f3136);
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('open_wef_voice')
-                .setLabel('انشاء روم')
-                .setStyle(ButtonStyle.Secondary)
-        );
-
-        await message.channel.send({ embeds: [embed], components: [row] });
-        try { await message.delete(); } catch(e) {}
-        return;
-    }
-
-    // أمر إرسال رسالة وزر حذف الروم
-    if (message.content.trim() === "!setup_delete" && hasAdminRole) {
-        if (message.channel.id !== CONFIG.deleteRoomSetupChannel) {
-            await message.reply(`هذا الأمر مخصص فقط للروم <#${CONFIG.deleteRoomSetupChannel}>`);
-            return;
-        }
-
-        const embed = new EmbedBuilder()
-            .setDescription("إذا تبي تحذف روم شخص تحزه فك روم سري من تحت")
-            .setColor(0x2f3136);
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('open_delete_voice')
-                .setLabel('حذف روم')
-                .setStyle(ButtonStyle.Secondary)
-        );
-
-        await message.channel.send({ embeds: [embed], components: [row] });
-        try { await message.delete(); } catch(e) {}
-        return;
-    }
-
-    // التعامل مع استقبال طلبات إنشاء الروم في روم wef-
+    // التعامل مع استقبال طلبات إنشاء الروم في روم wef- وإرسالها للروم الجديد المحدد
     if (message.channel.name.startsWith("wef-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -146,27 +186,17 @@ client.on('messageCreate', async (message) => {
             try {
                 const response = await fetch(attachment.url);
                 const buffer = Buffer.from(await response.arrayBuffer());
-                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
-            } catch (err) {
-                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
-            }
+                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'file.png' }));
+            } catch (err) {}
         }
 
-        // إرسال رسالة مؤقتة للمستخدم بأن طلبه أرسل للإدارة
         await message.reply({ content: "تم ارسال طلبك للادارة واذا تم الموافقة عليها بيتم انشاء الروم" });
 
-        // إرسال الطلب لروم طلبات الإدارة
         const requestChannel = message.guild.channels.cache.get(CONFIG.secretRoomRequestsChannel);
         if (requestChannel) {
             const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`approve_wef_${message.author.id}_${message.channel.id}`)
-                    .setLabel('✅')
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId(`deny_wef_${message.author.id}_${message.channel.id}`)
-                    .setLabel('❌')
-                    .setStyle(ButtonStyle.Secondary)
+                new ButtonBuilder().setCustomId(`approve_wef_${message.author.id}_${message.channel.id}`).setLabel('✅').setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId(`deny_wef_${message.author.id}_${message.channel.id}`).setLabel('❌').setStyle(ButtonStyle.Secondary)
             );
 
             await requestChannel.send({
@@ -176,12 +206,9 @@ client.on('messageCreate', async (message) => {
             });
         }
 
-        // جدولة حذف روم المؤقت wef- بعد 90 ثانية
         const tempChannel = message.channel;
         setTimeout(async () => {
-            try {
-                await tempChannel.delete();
-            } catch (e) {}
+            try { await tempChannel.delete(); } catch (e) {}
         }, 90000);
 
         return;
@@ -196,23 +223,15 @@ client.on('messageCreate', async (message) => {
             try {
                 const response = await fetch(attachment.url);
                 const buffer = Buffer.from(await response.arrayBuffer());
-                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
-            } catch (err) {
-                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
-            }
+                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'file.png' }));
+            } catch (err) {}
         }
 
         const requestChannel = message.guild.channels.cache.get(CONFIG.deleteRoomRequestsChannel);
         if (requestChannel) {
             const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`approve_del_${message.author.id}_${message.channel.id}`)
-                    .setLabel('✅')
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId(`deny_del_${message.author.id}_${message.channel.id}`)
-                    .setLabel('❌')
-                    .setStyle(ButtonStyle.Secondary)
+                new ButtonBuilder().setCustomId(`approve_del_${message.author.id}_${message.channel.id}`).setLabel('✅').setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId(`deny_del_${message.author.id}_${message.channel.id}`).setLabel('❌').setStyle(ButtonStyle.Secondary)
             );
 
             await requestChannel.send({
@@ -226,43 +245,21 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // الأوامر الأخرى (ver, setup_ticket, send, bc, رول, إلخ)
     const cleanMsg = message.content.trim();
     if (cleanMsg === "ver" && hasAdminRole) {
-        if (message.channel.id !== CONFIG.verificationRoom) {
-            await message.reply(`هذا الأمر مخصص فقط للروم <#${CONFIG.verificationRoom}>`);
-            return;
-        }
-        
-        const embed = new EmbedBuilder()
-            .setDescription("للتنوية حنا سيرفر فضايح ولا نمس للابتزاز باي صلة")
-            .setColor(0x2f3136);
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('verify_btn')
-                .setLabel('تفعيل')
-                .setStyle(ButtonStyle.Secondary)
-        );
-        
+        if (message.channel.id !== CONFIG.verificationRoom) return;
+        const embed = new EmbedBuilder().setDescription("للتنوية حنا سيرفر فضايح ولا نمس للابتزاز باي صلة").setColor(0x2f3136);
+        const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('verify_btn').setLabel('تفعيل').setStyle(ButtonStyle.Secondary));
         await message.channel.send({ embeds: [embed], components: [row] });
         try { await message.delete(); } catch(e) {}
         return;
     }
 
-    if (message.content.trim() === "!setup_ticket" && hasAdminRole) {
+    if (cleanMsg === "!setup_ticket" && hasAdminRole) {
         const channel = message.guild.channels.cache.get(CONFIG.ticketSetupRoom);
         if (channel) {
-            const embed = new EmbedBuilder()
-                .setDescription("إذا واجهتك اي مشكله او تبي البرايفت فك تكت من الزر الي تحت")
-                .setColor(0x2f3136);
-
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('create_ticket_btn')
-                    .setLabel('فك تكت')
-                    .setStyle(ButtonStyle.Secondary)
-            );
+            const embed = new EmbedBuilder().setDescription("إذا واجهتك اي مشكله او تبي البرايفت فك تكت من الزر الي تحت").setColor(0x2f3136);
+            const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('create_ticket_btn').setLabel('فك تكت').setStyle(ButtonStyle.Secondary));
             await channel.send({ embeds: [embed], components: [row] });
             await message.reply("تم إرسال زر التكت بنجاح!");
         }
@@ -284,25 +281,8 @@ client.on('messageCreate', async (message) => {
     if (message.content.startsWith("send") && hasSupportRole) {
         const textToSend = message.content.slice(4).trim();
         const filesToSend = [];
-
-        for (const [id, attachment] of message.attachments) {
-            try {
-                const response = await fetch(attachment.url);
-                const buffer = Buffer.from(await response.arrayBuffer());
-                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
-            } catch (err) {
-                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
-            }
-        }
-
         try { await message.delete(); } catch(e) {}
-
-        if (textToSend || filesToSend.length > 0) {
-            await message.channel.send({
-                content: textToSend || undefined,
-                files: filesToSend
-            });
-        }
+        if (textToSend) await message.channel.send({ content: textToSend });
         return;
     }
 });
@@ -310,7 +290,6 @@ client.on('messageCreate', async (message) => {
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
-    // زر التفعيل
     if (interaction.customId === 'verify_btn') {
         const member = interaction.member;
         try {
@@ -327,7 +306,6 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // زر إنشاء روم سري مؤقت wef-
     if (interaction.customId === 'open_wef_voice') {
         const guild = interaction.guild;
         const user = interaction.user;
@@ -344,30 +322,19 @@ client.on('interactionCreate', async (interaction) => {
                 type: 0,
                 parent: CONFIG.secretRoomVoiceLog,
                 permissionOverwrites: [
-                    {
-                        id: guild.id,
-                        Deny: [PermissionFlagsBits.ViewChannel]
-                    },
-                    {
-                        id: user.id,
-                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    },
-                    {
-                        id: CONFIG.supportRole,
-                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    }
+                    { id: guild.id, Deny: [PermissionFlagsBits.ViewChannel] },
+                    { id: user.id, Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+                    { id: CONFIG.supportRole, Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] }
                 ]
             });
 
             await interaction.reply({ content: `تم إنشاء روم الطلب الخاص بك: ${wefChannel}`, ephemeral: true });
         } catch (err) {
-            console.error(err);
             await interaction.reply({ content: "حدث خطأ أثناء إنشاء الروم.", ephemeral: true });
         }
         return;
     }
 
-    // زر فتح روم حذف الروم delete-room-
     if (interaction.customId === 'open_delete_voice') {
         const guild = interaction.guild;
         const user = interaction.user;
@@ -384,18 +351,9 @@ client.on('interactionCreate', async (interaction) => {
                 type: 0,
                 parent: CONFIG.deleteRoomVoiceLog,
                 permissionOverwrites: [
-                    {
-                        id: guild.id,
-                        Deny: [PermissionFlagsBits.ViewChannel]
-                    },
-                    {
-                        id: user.id,
-                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    },
-                    {
-                        id: CONFIG.supportRole,
-                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    }
+                    { id: guild.id, Deny: [PermissionFlagsBits.ViewChannel] },
+                    { id: user.id, Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+                    { id: CONFIG.supportRole, Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] }
                 ]
             });
 
@@ -407,7 +365,7 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // الموافقة على إنشاء الروم السري وتوزيعها تلقائياً بالترتيب (أقل من 50 روم لكل كاتيغوري)
+    // الموافقة على إنشاء الروم السري مع معالجة وإضافة الحقوق للصور والفيديوهات
     if (interaction.customId.startsWith('approve_wef_') || interaction.customId.startsWith('deny_wef_')) {
         const parts = interaction.customId.split('_');
         const action = parts[0];
@@ -417,9 +375,7 @@ client.on('interactionCreate', async (interaction) => {
         const targetUser = await interaction.guild.members.fetch(targetUserId).catch(() => null);
 
         if (action === 'deny') {
-            try {
-                if (targetUser) await targetUser.send("تم رفض طلبك لانشاء روم");
-            } catch(e) {}
+            try { if (targetUser) await targetUser.send("تم رفض طلبك لانشاء روم"); } catch(e) {}
             await interaction.update({ content: "تم رفض طلب إنشاء الروم.", components: [] });
             try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
             return;
@@ -427,21 +383,34 @@ client.on('interactionCreate', async (interaction) => {
 
         if (action === 'approve') {
             const guild = interaction.guild;
-            
-            // جلب محتوى الرسالة الأصلية (الصور والنصوص)
             const requestMsg = interaction.message;
             const contentBody = requestMsg.content.split('\nبواسطة')[0];
 
-            const filesToSend = [];
+            const processedFiles = [];
             for (const att of requestMsg.attachments.values()) {
                 try {
                     const response = await fetch(att.url);
                     const buffer = Buffer.from(await response.arrayBuffer());
-                    filesToSend.push(new AttachmentBuilder(buffer, { name: att.name || 'image.png' }));
+                    const fileName = att.name || 'media.png';
+                    const isVideo = fileName.endsWith('.mp4') || fileName.endsWith('.mov') || fileName.endsWith('.webm') || att.contentType?.startsWith('video');
+
+                    if (isVideo) {
+                        const inputPath = path.join('/tmp', `input_${Date.now()}_${fileName}`);
+                        const outputPath = path.join('/tmp', `output_${Date.now()}_${fileName}`);
+                        fs.writeFileSync(inputPath, buffer);
+
+                        await addWatermarkToVideo(inputPath, outputPath);
+                        const watermarkedBuffer = fs.readFileSync(outputPath);
+                        processedFiles.push(new AttachmentBuilder(watermarkedBuffer, { name: fileName }));
+
+                        try { fs.unlinkSync(inputPath); fs.unlinkSync(outputPath); } catch(e) {}
+                    } else {
+                        const watermarkedBuffer = await addWatermarkToImage(buffer);
+                        processedFiles.push(new AttachmentBuilder(watermarkedBuffer, { name: fileName }));
+                    }
                 } catch (err) {}
             }
 
-            // البحث عن الكاتيغوري المناسب (أقل من 50 روم بالترتيب)
             let chosenCategory = null;
             for (const catId of CONFIG.secretCategories) {
                 const category = guild.channels.cache.get(catId);
@@ -450,56 +419,40 @@ client.on('interactionCreate', async (interaction) => {
                     break;
                 }
             }
-
-            // إذا امتلت كل الكاتيغوريات نضعها في الأخيرة كاحتياط
             if (!chosenCategory) {
                 chosenCategory = CONFIG.secretCategories[CONFIG.secretCategories.length - 1];
             }
 
             try {
-                // اسم الروم يكون محتوى رسالة الشخص (مثل اسم الشخص أو العبارة)
                 const roomName = contentBody.slice(0, 95) || `room-${targetUserId}`;
-
                 const newSecretRoom = await guild.channels.create({
                     name: roomName,
                     type: 0,
                     parent: chosenCategory,
                     permissionOverwrites: [
-                        {
-                            id: guild.id,
-                            Deny: [PermissionFlagsBits.ViewChannel] // محد يشوفه أبدا حتى السبورت مايشوفون بس الإستريتر/الإدارة
-                        },
-                        {
-                            id: CONFIG.adminControlRole,
-                            Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
-                        },
-                        {
-                            id: targetUserId,
-                            Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
-                        }
+                        { id: guild.id, Deny: [PermissionFlagsBits.ViewChannel] },
+                        { id: CONFIG.adminControlRole, Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+                        { id: targetUserId, Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
                     ]
                 });
 
-                // أول ما يتسوى الروم يرسل التحذير والبيانات
                 await newSecretRoom.send("This room is for those over 18 years old");
-                if (contentBody || filesToSend.length > 0) {
+                if (contentBody || processedFiles.length > 0) {
                     await newSecretRoom.send({
                         content: contentBody || undefined,
-                        files: filesToSend
+                        files: processedFiles
                     });
                 }
 
                 await interaction.update({ content: `تم الموافقة وإنشاء الروم بنجاح: ${newSecretRoom}`, components: [] });
                 try { await guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
             } catch (err) {
-                console.error(err);
                 await interaction.reply({ content: "حدث خطأ أثناء إنشاء الروم السري.", ephemeral: true });
             }
         }
         return;
     }
 
-    // الموافقة أو الرفض لحذف الروم
     if (interaction.customId.startsWith('approve_del_') || interaction.customId.startsWith('deny_del_')) {
         const parts = interaction.customId.split('_');
         const action = parts[0];
@@ -509,9 +462,7 @@ client.on('interactionCreate', async (interaction) => {
         const targetUser = await interaction.guild.members.fetch(targetUserId).catch(() => null);
 
         if (action === 'deny') {
-            try {
-                if (targetUser) await targetUser.send("تم رفض طلبك لحذف الروم");
-            } catch(e) {}
+            try { if (targetUser) await targetUser.send("تم رفض طلبك لحذف الروم"); } catch(e) {}
             await interaction.update({ content: "تم رفض طلب حذف الروم.", components: [] });
             try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
             return;
@@ -519,15 +470,10 @@ client.on('interactionCreate', async (interaction) => {
 
         if (action === 'approve') {
             const requestMsg = interaction.message;
-            // استخراج الروم الممنشن من رسالة الطلب لحذفه فوراً
             const mentionedChannel = requestMsg.mentions.channels.first();
-
             if (mentionedChannel) {
-                try {
-                    await mentionedChannel.delete();
-                } catch (e) {}
+                try { await mentionedChannel.delete(); } catch (e) {}
             }
-
             await interaction.update({ content: "تمت الموافقة وحذف الروم بنجاح.", components: [] });
             try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
         }
