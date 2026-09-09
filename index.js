@@ -72,7 +72,6 @@ const CONFIG = {
     ]
 };
 
-// لتتبع وقت آخر استدعاء لكل تكت (Cooldown)
 const summonCooldowns = new Map();
 
 client.once('ready', async () => {
@@ -95,21 +94,18 @@ client.on('messageCreate', async (message) => {
     const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
 
-    // أمر قفل الروم
     if (message.content.trim() === "قفل" && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         await message.channel.permissionOverwrites.edit(message.guild.id, { SendMessages: false });
         return;
     }
 
-    // أمر فتح الروم
     if (message.content.trim() === "فتح" && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         await message.channel.permissionOverwrites.edit(message.guild.id, { SendMessages: null });
         return;
     }
 
-    // أمر مسح الرسائل
     if (message.content.startsWith("مسح") && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         const args = message.content.split(" ");
@@ -119,7 +115,6 @@ client.on('messageCreate', async (message) => {
             const fetched = await message.channel.messages.fetch({ limit: 100 });
             await message.channel.bulkDelete(fetched, true).catch(() => {});
         } else {
-            let deletedCount = 0;
             let remaining = count;
             while (remaining > 0) {
                 const fetchSize = remaining > 100 ? 100 : remaining;
@@ -127,7 +122,6 @@ client.on('messageCreate', async (message) => {
                 if (fetched.size === 0) break;
                 const deleted = await message.channel.bulkDelete(fetched, true).catch(() => {});
                 if (!deleted || deleted.size === 0) break;
-                deletedCount += deleted.size;
                 remaining -= deleted.size;
                 if (fetched.size < fetchSize) break;
             }
@@ -135,21 +129,18 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // نظام إعطاء أو سحب الرول عبر الرد على الرسائل
     if (message.reference && hasSupportRole) {
         const content = message.content.trim();
-        // نفترض أن الصيغة تكون بذكر اسم الرول أو أمر يحدد الرول المطلوب إعطاؤه/سحبه
         if (content.includes("رول") || content.includes("البرايفت") || content.includes("المخفي")) {
             try {
                 const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
                 const targetMember = await message.guild.members.fetch(repliedMessage.author.id);
                 
-                // الرول المستهدف هو CONFIG.supportRole أو الرول المذكور
                 const targetRole = message.guild.roles.cache.get(CONFIG.supportRole);
                 if (!targetRole) return;
 
                 const hasRoleAlready = targetMember.roles.cache.has(targetRole.id);
-                const actionType = hasRoleAlready ? 'remove' : 'add'; // إذا عنده رول يصير تل (سحب)، إذا ما عنده يصير إعطاء
+                const actionType = hasRoleAlready ? 'remove' : 'add';
 
                 const logChannel = message.guild.channels.cache.get(CONFIG.roleRequestRoom);
                 if (logChannel) {
@@ -171,6 +162,21 @@ client.on('messageCreate', async (message) => {
 
                     await logChannel.send({ embeds: [embed], components: [row] });
                     await message.react('✅').catch(() => {});
+
+                    // إرسال رسالة في روم الـ supportLogRoom يطلب الدليل مع منشن السبورت وحذفها بعد 15 ثانية
+                    const guideChannel = message.guild.channels.cache.get(CONFIG.supportLogRoom);
+                    if (guideChannel) {
+                        const guideMsgContent = actionType === 'add' 
+                            ? `${message.author} اكتب دليلك` 
+                            : `${message.author} اكتب دليلك لتل الشخص`;
+                        
+                        const sentGuideMsg = await guideChannel.send({ content: guideMsgContent }).catch(() => null);
+                        if (sentGuideMsg) {
+                            setTimeout(async () => {
+                                try { await sentGuideMsg.delete(); } catch(e) {}
+                            }, 15000);
+                        }
+                    }
                 }
             } catch (err) {
                 console.error(err);
@@ -407,7 +413,6 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // إنشاء التكت
     if (interaction.customId === 'create_ticket_btn') {
         const guild = interaction.guild;
         const user = interaction.user;
@@ -467,12 +472,10 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // زر استدعاء السبورت مع كولداون 5 دقائق
     if (interaction.customId.startsWith('summon_ticket_')) {
         const ticketOwnerId = interaction.customId.split('_')[2];
         const member = interaction.member;
 
-        // التحقق من أن المستخدم لديه رول الدعم المخصص لاستخدام زر الاستدعاء
         if (!member.roles.cache.has(CONFIG.ticketSupportPingRole) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
             await interaction.reply({ content: "ما معك رول الادارة/السبورت المخول بذلك.", ephemeral: true });
             return;
@@ -480,7 +483,7 @@ client.on('interactionCreate', async (interaction) => {
 
         const channelId = interaction.channel.id;
         const now = Date.now();
-        const cooldownTime = 5 * 60 * 1000; // 5 دقائق
+        const cooldownTime = 5 * 60 * 1000;
 
         if (summonCooldowns.has(channelId)) {
             const expirationTime = summonCooldowns.get(channelId);
@@ -498,7 +501,6 @@ client.on('interactionCreate', async (interaction) => {
 
         summonCooldowns.set(channelId, now + cooldownTime);
 
-        // إرسال رسالة بالخاص لصاحب التكت
         try {
             const ticketOwner = await interaction.guild.members.fetch(ticketOwnerId).catch(() => null);
             if (ticketOwner) {
@@ -510,7 +512,6 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // زر استدعاء الإدارة (متاح للجميع)
     if (interaction.customId === 'summon_admin') {
         const sentMsg = await interaction.channel.send({ content: `<@&${CONFIG.adminControlRole}>` });
         setTimeout(async () => {
@@ -521,13 +522,12 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // التعامل مع أزرار قبول/رفض إعطاء أو سحب الرولات
     if (interaction.customId.startsWith('role_accept_') || interaction.customId.startsWith('role_deny_')) {
         const parts = interaction.customId.split('_');
-        const actionStatus = parts[1]; // accept or deny
+        const actionStatus = parts[1];
         const targetUserId = parts[2];
         const roleId = parts[3];
-        const actionType = parts[4]; // add or remove
+        const actionType = parts[4];
         const supportUserId = parts[5];
 
         const targetMember = await interaction.guild.members.fetch(targetUserId).catch(() => null);
