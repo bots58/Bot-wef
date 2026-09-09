@@ -43,7 +43,7 @@ const CONFIG = {
     ticketCategory2: "1545853004673196172", 
     
     supportRole: "1547161341045776484", 
-    adminControlRole: "1545853891101466746", 
+    adminControlRole: "1545853891101466746", // رول الإدارة / الأونر المحدد
     
     roleRequestRoom: "1546928048174014566", 
     supportLogRoom: "1546933674673447042" 
@@ -53,7 +53,7 @@ client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
-// منح رول غير مفعل تلقائياً لأي عضو جديد
+// منح رول غير مفعل تلقائياً وفوراً لأي عضو جديد يدخل السيرفر
 client.on('guildMemberAdd', async (member) => {
     try {
         if (CONFIG.unverifiedRole) {
@@ -113,8 +113,8 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر إخفاء لأي روم (شات أو فويس)
-    if (message.content.trim() === "إخفاء" && hasSupportRole) {
+    // أمر "إخفاء" يعمل في أي روم (شات أو فويس) ويمنع رول غير مفعل من رؤيته
+    if (message.content.trim() === "إخفاء" && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         await message.channel.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: false });
         await message.channel.send("تم إخفاء هذا الروم عن رول غير مفعل.");
@@ -146,24 +146,46 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر send مع إرسال الصور بشكل بشري طبيعي وصحيح تماماً بدون ملفات تالفة
+    // أمر send المعدل كلياً لإرسال الصور بشكل بشري طبيعي 100% بدون 0 bytes
     if (message.content.startsWith("send") && hasSupportRole) {
         const textToSend = message.content.slice(4).trim();
-        const filesToSend = message.attachments.map(att => new AttachmentBuilder(att.url));
+        const filesToSend = [];
+
+        for (const [id, attachment] of message.attachments) {
+            try {
+                const response = await fetch(attachment.url);
+                const buffer = Buffer.from(await response.arrayBuffer());
+                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
+            } catch (err) {
+                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
+            }
+        }
 
         try { await message.delete(); } catch(e) {}
 
-        await message.channel.send({
-            content: textToSend || undefined,
-            files: filesToSend
-        });
+        if (textToSend || filesToSend.length > 0) {
+            await message.channel.send({
+                content: textToSend || undefined,
+                files: filesToSend
+            });
+        }
         return;
     }
 
     // أمر البث العام (bc)
     if (message.content.startsWith("bc") && hasAdminRole) {
         const broadcastContent = message.content.slice(2).trim();
-        const filesToSend = message.attachments.map(att => new AttachmentBuilder(att.url));
+        const filesToSend = [];
+
+        for (const [id, attachment] of message.attachments) {
+            try {
+                const response = await fetch(attachment.url);
+                const buffer = Buffer.from(await response.arrayBuffer());
+                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
+            } catch (err) {
+                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
+            }
+        }
         
         const members = await message.guild.members.fetch();
         let successCount = 0;
@@ -213,7 +235,16 @@ client.on('messageCreate', async (message) => {
 
         const requestChannel = message.guild.channels.cache.get(CONFIG.roleRequestRoom);
         if (requestChannel) {
-            const filesToSend = message.attachments.map(att => new AttachmentBuilder(att.url));
+            const filesToSend = [];
+            for (const [id, attachment] of message.attachments) {
+                try {
+                    const response = await fetch(attachment.url);
+                    const buffer = Buffer.from(await response.arrayBuffer());
+                    filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
+                } catch (err) {
+                    filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
+                }
+            }
             
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
@@ -250,11 +281,11 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// التعامل مع الأزرار
+// التفاعل مع الأزرار
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
-    // زر التفعيل بدون أي أخطاء
+    // زر التفعيل: سحب رول غير مفعل وإعطاء رول التفعيل بدون أي أخطاء
     if (interaction.customId === 'verify_btn') {
         const member = interaction.member;
         try {
@@ -273,7 +304,6 @@ client.on('interactionCreate', async (interaction) => {
         const guild = interaction.guild;
         const user = interaction.user;
 
-        // التحقق هل لديه تكت مفتوح مسبقاً
         const existingTicket = guild.channels.cache.find(c => c.name === `ticket-${user.username}` && c.type === 0);
         if (existingTicket) {
             await interaction.reply({ content: "لا تستطيع فتح تيكت إلا لما يتقفل الأول.", ephemeral: true });
@@ -308,7 +338,6 @@ client.on('interactionCreate', async (interaction) => {
                 ]
             });
 
-            // أزرار داخل التكت (إغلاق + استدعاء صاحب التكت)
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId(`call_owner_${user.id}`)
