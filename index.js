@@ -53,7 +53,7 @@ client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
-// منح رول غير مفعل تلقائياً وفوراً لأي عضو جديد يدخل السيرفر
+// منح رول 1545848907156820100 تلقائياً وفوراً لأي عضو جديد يدخل السيرفر
 client.on('guildMemberAdd', async (member) => {
     try {
         if (CONFIG.unverifiedRole) {
@@ -113,7 +113,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر إخفاء / اخفا (يحذف الرسالة ويخفي الروم بدون رد)
+    // أمر إخفاء / اخفا
     const cleanMsg = message.content.trim();
     if ((cleanMsg === "إخفاء" || cleanMsg === "اخفا") && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
@@ -121,7 +121,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر إظهار / اظهار (يحذف الرسالة ويرجع الروم ظاهر للكل بدون رد)
+    // أمر إظهار / اظهار
     if ((cleanMsg === "إظهار" || cleanMsg === "اظهار") && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         await message.channel.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: null });
@@ -212,7 +212,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // نظام طلبات الرولات
+    // نظام طلبات الرولات (مع دعم سحب الرول إذا كان العضو يملكه مسبقاً)
     if (message.content.startsWith("رول") && hasSupportRole) {
         const targetMember = message.mentions.members.first();
         if (!targetMember) return;
@@ -223,7 +223,7 @@ client.on('messageCreate', async (message) => {
             return;
         }
 
-        const foundRole = message.guild.roles.cache.find(r => r.name.toLowerCase().includes(roleQuery.toLowerCase()) || r.id === roleQuery.replace(/[<@&>]/g, ""));
+        const foundRole = message.guild.roles.cache.find(r => r.name.toLowerCase().includes(roleQuery.toLowerCase()) || r.id === roleQuery.replace(/[<@&>]/g, "") || r.name.startsWith(roleQuery));
         
         if (!foundRole) {
             await message.react('❌');
@@ -232,43 +232,88 @@ client.on('messageCreate', async (message) => {
 
         await message.react('✅');
 
-        const logRoom = message.guild.channels.cache.get(CONFIG.supportLogRoom);
-        if (logRoom) {
-            const warningMsg = await logRoom.send(`${targetMember} اكتب دليلك`);
-            setTimeout(() => {
-                warningMsg.delete().catch(() => {});
-            }, 15000);
-        }
+        const hasRoleAlready = targetMember.roles.cache.has(foundRole.id);
 
-        const requestChannel = message.guild.channels.cache.get(CONFIG.roleRequestRoom);
-        if (requestChannel) {
-            const filesToSend = [];
-            for (const [id, attachment] of message.attachments) {
-                try {
-                    const response = await fetch(attachment.url);
-                    const buffer = Buffer.from(await response.arrayBuffer());
-                    filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
-                } catch (err) {
-                    filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
-                }
+        if (hasRoleAlready) {
+            // الشخص معه الرول مسبقاً -> طلب تل (سحب) الرول
+            const logRoom = message.guild.channels.cache.get(CONFIG.supportLogRoom);
+            if (logRoom) {
+                const warningMsg = await logRoom.send(`${targetMember} اكتب دليلك لتل الرول`);
+                setTimeout(() => {
+                    warningMsg.delete().catch(() => {});
+                }, 15000);
             }
-            
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`approve_role_${targetMember.id}_${foundRole.id}`)
-                    .setLabel('صح')
-                    .setStyle(ButtonStyle.Success),
-                new ButtonBuilder()
-                    .setCustomId(`deny_role_${targetMember.id}`)
-                    .setLabel('خطأ')
-                    .setStyle(ButtonStyle.Danger)
-            );
 
-            await requestChannel.send({
-                content: `طلب إعطاء رول (${foundRole.name}) للعضو: ${targetMember}\nبواسطة: ${message.author}`,
-                files: filesToSend,
-                components: [row]
-            });
+            const requestChannel = message.guild.channels.cache.get(CONFIG.roleRequestRoom);
+            if (requestChannel) {
+                const filesToSend = [];
+                for (const [id, attachment] of message.attachments) {
+                    try {
+                        const response = await fetch(attachment.url);
+                        const buffer = Buffer.from(await response.arrayBuffer());
+                        filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
+                    } catch (err) {
+                        filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
+                    }
+                }
+                
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`remove_role_${targetMember.id}_${foundRole.id}`)
+                        .setLabel('صح')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId(`deny_role_${targetMember.id}`)
+                        .setLabel('خطأ')
+                        .setStyle(ButtonStyle.Danger)
+                );
+
+                await requestChannel.send({
+                    content: `طلب تل رول (${foundRole.name}) من العضو: ${targetMember}\nبواسطة: ${message.author}`,
+                    files: filesToSend,
+                    components: [row]
+                });
+            }
+        } else {
+            // الشخص ليس معه الرول -> طلب إعطاء رول بالطريقة المعتادة
+            const logRoom = message.guild.channels.cache.get(CONFIG.supportLogRoom);
+            if (logRoom) {
+                const warningMsg = await logRoom.send(`${targetMember} اكتب دليلك`);
+                setTimeout(() => {
+                    warningMsg.delete().catch(() => {});
+                }, 15000);
+            }
+
+            const requestChannel = message.guild.channels.cache.get(CONFIG.roleRequestRoom);
+            if (requestChannel) {
+                const filesToSend = [];
+                for (const [id, attachment] of message.attachments) {
+                    try {
+                        const response = await fetch(attachment.url);
+                        const buffer = Buffer.from(await response.arrayBuffer());
+                        filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
+                    } catch (err) {
+                        filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
+                    }
+                }
+                
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`approve_role_${targetMember.id}_${foundRole.id}`)
+                        .setLabel('صح')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId(`deny_role_${targetMember.id}`)
+                        .setLabel('خطأ')
+                        .setStyle(ButtonStyle.Danger)
+                );
+
+                await requestChannel.send({
+                    content: `طلب إعطاء رول (${foundRole.name}) للعضو: ${targetMember}\nبواسطة: ${message.author}`,
+                    files: filesToSend,
+                    components: [row]
+                });
+            }
         }
         return;
     }
@@ -292,12 +337,16 @@ client.on('messageCreate', async (message) => {
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
 
-    // زر التفعيل: سحب رول غير مفعل وإعطاء رول التفعيل بدون أي أخطاء
+    // زر التفعيل: إزالة رول 1545848907156820100 فقط عن الشخص الذي ضغط الزر حصرياً وبدون أخطاء
     if (interaction.customId === 'verify_btn') {
         const member = interaction.member;
         try {
-            if (CONFIG.unverifiedRole) await member.roles.remove(CONFIG.unverifiedRole);
-            if (CONFIG.verifiedRole) await member.roles.add(CONFIG.verifiedRole);
+            if (CONFIG.unverifiedRole && member.roles.cache.has(CONFIG.unverifiedRole)) {
+                await member.roles.remove(CONFIG.unverifiedRole);
+            }
+            if (CONFIG.verifiedRole) {
+                await member.roles.add(CONFIG.verifiedRole);
+            }
             
             await interaction.reply({ content: "تم تفعيلك بنجاح!", ephemeral: true });
         } catch (err) {
@@ -392,9 +441,10 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // قبول أو رفض طلبات الرولات
-    if (interaction.customId.startsWith('approve_role_') || interaction.customId.startsWith('deny_role_')) {
+    // قبول إعطاء رول، قبول سحب رول (تل الرول)، أو رفض الطلب
+    if (interaction.customId.startsWith('approve_role_') || interaction.customId.startsWith('remove_role_') || interaction.customId.startsWith('deny_role_')) {
         const isApprove = interaction.customId.startsWith('approve_role_');
+        const isRemove = interaction.customId.startsWith('remove_role_');
         const parts = interaction.customId.split('_');
         const targetUserId = parts[2];
         const roleId = parts[3];
@@ -408,7 +458,14 @@ client.on('interactionCreate', async (interaction) => {
             } catch (err) {
                 await interaction.update({ content: `تم قبول الطلب وإعطاء الرول بنجاح لـ (${member}).`, components: [] });
             }
-        } else if (!isApprove) {
+        } else if (isRemove && member && roleId) {
+            try {
+                await member.roles.remove(roleId);
+                await interaction.update({ content: `تم قبول الطلب وتل الرول بنجاح من (${member}).`, components: [] });
+            } catch (err) {
+                await interaction.update({ content: `تم قبول الطلب وتل الرول بنجاح من (${member}).`, components: [] });
+            }
+        } else if (interaction.customId.startsWith('deny_role_')) {
             await interaction.update({ content: "تم رفض الطلب.", components: [] });
         } else {
             await interaction.reply({ content: "لم يتم العثور على العضو.", ephemeral: true });
