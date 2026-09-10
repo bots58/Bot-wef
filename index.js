@@ -1298,7 +1298,7 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.customId.startsWith('approve_makhfi_') || interaction.customId.startsWith('deny_makhfi_')) {
         const parts = interaction.customId.split('_');
-        const action = parts.0;
+        const action = parts[0];
         const targetUserId = parts[2];
         const originalChannelId = parts[3];
 
