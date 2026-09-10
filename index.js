@@ -73,6 +73,15 @@ const CONFIG = {
 };
 
 const summonCooldowns = new Map();
+const pendingNasharEdits = new Set();
+let customNasharLinks = 
+`discord.gg/freesecret
+discord.gg/6777
+discord.gg/zbr
+discord.gg/rnn
+discord.gg/shaleh
+discord.gg/n90
+discord.gg/hnn`;
 
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
@@ -123,17 +132,33 @@ client.on('messageCreate', async (message) => {
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
     const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) || hasAdminRole;
 
+    if (hasAdminRole && pendingNasharEdits.has(message.author.id)) {
+        pendingNasharEdits.delete(message.author.id);
+        customNasharLinks = message.content;
+        try { await message.delete(); } catch(e) {}
+        const confirmMsg = await message.channel.send("✅ تم تحديث روابط النشر بنجاح!");
+        setTimeout(async () => {
+            try { await confirmMsg.delete(); } catch(e) {}
+        }, 4000);
+        return;
+    }
+
+    if (hasAdminRole && message.content.trim() === "تعديل نشر") {
+        try { await message.delete(); } catch(e) {}
+        pendingNasharEdits.add(message.author.id);
+        await message.author.send("اكتب الكلام الجديد وأي كلمة تكتبها تصير حق اللي تنرسل لما اكتب نشر.").catch(async () => {
+            const fallback = await message.channel.send({ content: `${message.author} اكتب الكلام الجديد وأي كلمة تكتبها تصير حق اللي تنرسل لما اكتب نشر.` });
+            setTimeout(async () => {
+                try { await fallback.delete(); } catch(e) {}
+            }, 10000);
+        });
+        return;
+    }
+
     if (hasAdminRole && message.content.trim() === "نشر") {
         try { await message.delete(); } catch(e) {}
         
-        await message.channel.send(
-`discord.gg/freesecret
-discord.gg/diyaabo
-discord.gg/rnn
-discord.gg/zbr
-discord.gg/shaleh
-discord.gg/tah`
-        );
+        await message.channel.send(customNasharLinks);
 
         setTimeout(async () => {
             await message.channel.send(
