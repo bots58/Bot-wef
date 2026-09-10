@@ -767,7 +767,7 @@ client.on('interactionCreate', async (interaction) => {
                     },
                     {
                         id: CONFIG.supportRole,
-                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                        Deny: [PermissionFlagsBits.ViewChannel]
                     },
                     {
                         id: "1545853891101466746",
