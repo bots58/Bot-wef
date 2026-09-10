@@ -620,9 +620,15 @@ client.on('interactionCreate', async (interaction) => {
         const guild = interaction.guild;
         const user = interaction.user;
 
-        const existingTicket = guild.channels.cache.find(c => c.name === `ticket-${user.username.toLowerCase()}` && c.type === 0);
+        // فحص سريع فائق بالبحث في القنوات الموجودة أو صلاحيات التراخيص للتأكد مما إذا كان لديه تكت مفتوح مسبقاً
+        const existingTicket = guild.channels.cache.find(c => 
+            (c.name.startsWith('ticket-') || c.parentId === CONFIG.ticketCategory1 || c.parentId === CONFIG.ticketCategory2) && 
+            c.permissionOverwrites && 
+            c.permissionOverwrites.cache.has(user.id)
+        );
+
         if (existingTicket) {
-            await interaction.reply({ content: "لديك تذكرة مفتوحة بالفعل.", ephemeral: true });
+            await interaction.reply({ content: "لديك تيكت من قبل ولا يمكنك فتح تيكت جديد حتى يتم إغلاق تيكتك القديمة.", ephemeral: true });
             return;
         }
 
@@ -959,7 +965,7 @@ client.on('interactionCreate', async (interaction) => {
         const parts = interaction.customId.split('_');
         const action = parts[0];
         const targetUserId = parts[2];
-        const originalChannelId = parts[3];
+        .originalChannelId = parts[3];
 
         const targetUser = await interaction.guild.members.fetch(targetUserId).catch(() => null);
 
