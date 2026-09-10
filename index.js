@@ -58,6 +58,7 @@ const CONFIG = {
     deleteRoomRequestsChannel: "1547233488418246796",
 
     secretApprovalChannel: "1545859261526048890",
+    topChannelId: "1547705159830863912",
 
     secretCategories: [
         "1545859590506152096",
@@ -83,8 +84,73 @@ discord.gg/shaleh
 discord.gg/n90
 discord.gg/hnn`;
 
+// نظام تخزين النقاط واليوميات في الذاكرة (Map)
+const userStats = new Map(); // { userId: { total: number, daily: number, lastReset: string } }
+
+function getTodayDate() {
+    return new Date().toISOString().split('T')[0];
+}
+
+function checkAndResetDaily(userId) {
+    const today = getTodayDate();
+    if (!userStats.has(userId)) {
+        userStats.set(userId, { total: 0, daily: 0, lastReset: today });
+    }
+    const data = userStats.get(userId);
+    if (data.lastReset !== today) {
+        data.daily = 0;
+        data.lastReset = today;
+    }
+    return data;
+}
+
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
+
+    // حلقة تحديث قائمة التوب والآي دي كل 30 ثانية وتعديل نفس الرسالة تلقائياً
+    setInterval(async () => {
+        try {
+            const channel = await client.channels.fetch(CONFIG.topChannelId).catch(() => null);
+            if (!channel) return;
+
+            // ترتيب المستخدمين تنازلياً حسب النقاط الكلية
+            const sortedUsers = Array.from(userStats.entries())
+                .sort((a, b) => b[1].total - a[1].total)
+                .slice(0, 10);
+
+            let descText = "";
+            if (sortedUsers.length === 0) {
+                descText = "لا توجد نقاط مسجلة حتى الآن.";
+            } else {
+                sortedUsers.forEach(([userId, data], index) => {
+                    descText += `- ${index + 1} <@${userId}> ⟶ ${data.total}\n`;
+                });
+            }
+
+            const embed = new EmbedBuilder()
+                .setDescription(descText)
+                .setColor(0x2f3136);
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('my_stats_btn')
+                    .setLabel('my stats')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+            // البحث عن آخر رسالة للبوت في الروم لتعديلها وعدم إرسال رسالة جديدة
+            const messages = await channel.messages.fetch({ limit: 10 }).catch(() => null);
+            const botMsg = messages ? messages.find(m => m.author.id === client.user.id && m.components.length > 0) : null;
+
+            if (botMsg) {
+                await botMsg.edit({ embeds: [embed], components: [row] }).catch(() => {});
+            } else {
+                await channel.send({ embeds: [embed], components: [row] });
+            }
+        } catch (err) {
+            console.error("Error in top interval update:", err);
+        }
+    }, 30000);
 });
 
 client.on('channelCreate', async (channel) => {
@@ -132,6 +198,20 @@ client.on('messageCreate', async (message) => {
     const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
     const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) || hasAdminRole;
+
+    // أمر الإغلاق التام عبر الرول المخصص 1545853891101466746 أو الأدمن بكلمة "اغلاق"
+    const msgContentTrimmed = message.content.trim();
+    if (msgContentTrimmed === "اغلاق" || msgContentTrimmed === "إغلاق") {
+        if (message.member.roles.cache.has("1545853891101466746") || hasAdminRole) {
+            try { await message.delete(); } catch(e) {}
+            setTimeout(async () => {
+                try {
+                    await message.channel.delete();
+                } catch(e) {}
+            }, 500);
+            return;
+        }
+    }
 
     if (hasAdminRole && pendingNasharEdits.has(message.author.id)) {
         pendingNasharEdits.delete(message.author.id);
@@ -241,13 +321,9 @@ client.on('messageCreate', async (message) => {
 
         try { await message.delete(); } catch(e) {}
 
-        const embed18 = new EmbedBuilder()
-            .setDescription("This room is for those over 18 years old")
-            .setColor(0x2f3136);
-
+        // تم استبدال رسالة 18+ التقليدية بتنسيق الخلفية السوداء (Spoiler) وإزالة عبارة 18 بناءً على طلبك
         await message.channel.send({
-            embeds: [embed18],
-            content: args.length > 0 ? args : undefined,
+            content: (args.length > 0 ? args + "\n" : "") + "||ودك تاخذ المخفي بدون قروشها||",
             files: filesToSend
         });
         return;
@@ -442,10 +518,6 @@ client.on('messageCreate', async (message) => {
             return;
         }
 
-        const embed18 = new EmbedBuilder()
-            .setDescription("This room is for those over 18 years old")
-            .setColor(0x2f3136);
-
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('open_makhfi_room')
@@ -453,9 +525,9 @@ client.on('messageCreate', async (message) => {
                 .setStyle(ButtonStyle.Secondary)
         );
 
+        // تعديل زر مخفي ليكون مع الخلفية السوداء (Spoiler) وإلغاء عبارة 18+ تماماً بناءً على طلبك
         await message.channel.send({
-            embeds: [embed18],
-            content: "ودك تاخذ المخفي بدون قروشه\nاضغط تحت",
+            content: "ودك تاخذ المخفي بدون قروشه\nاضغط تحت\n\n||ودك تاخذ المخفي بدون قروشها||",
             components: [row]
         });
         try { await message.delete(); } catch(e) {}
@@ -672,6 +744,16 @@ client.on('messageCreate', async (message) => {
 
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
+
+    if (interaction.customId === 'my_stats_btn') {
+        const userId = interaction.user.id;
+        const stats = checkAndResetDaily(userId);
+        await interaction.reply({
+            content: `الرومات الي فكيتها اليوم ⟵ ${stats.daily}\nالرومات الي فكيتها كليا ⟵ ${stats.total}`,
+            ephemeral: true
+        });
+        return;
+    }
 
     if (interaction.customId === 'verify_btn') {
         const member = interaction.member;
@@ -895,6 +977,7 @@ client.on('interactionCreate', async (interaction) => {
             await wefChannel.send(`أرسل صورك ودليلك لإنشاء الروم ${user}`);
             await interaction.reply({ content: `تم إنشاء روم الطلب الخاص بك: ${wefChannel}`, ephemeral: true });
 
+            // الحذف التلقائي خلال 10 دقائق (600,000 ملي ثانية) بغض النظر عن حالة القبول أو الرفض
             setTimeout(async () => {
                 try {
                     const channelToCheck = guild.channels.cache.get(wefChannel.id);
@@ -944,6 +1027,7 @@ client.on('interactionCreate', async (interaction) => {
             await delChannel.send(`أرسل صورك ودليلك لحذف الروم ${user}`);
             await interaction.reply({ content: `تم إنشاء روم طلب الحذف: ${delChannel}`, ephemeral: true });
 
+            // الحذف التلقائي خلال 10 دقائق (600,000 ملي ثانية)
             setTimeout(async () => {
                 try {
                     const channelToCheck = guild.channels.cache.get(delChannel.id);
@@ -990,14 +1074,10 @@ client.on('interactionCreate', async (interaction) => {
                 ]
             });
 
-            const embed18 = new EmbedBuilder()
-                .setDescription("This room is for those over 18 years old")
-                .setColor(0x2f3136);
-
-            await makhfiChannel.send({ embeds: [embed18] });
             await makhfiChannel.send(`ارسل دليلك من صور وبينرسل طلبك للادارة ${user}`);
             await interaction.reply({ content: `تم انشاء الروم: ${makhfiChannel}`, ephemeral: true });
 
+            // الحذف التلقائي خلال 10 دقائق (600,000 ملي ثانية) لكل رومات المخفي بغض النظر عن حالة القبول أو الرفض
             setTimeout(async () => {
                 try {
                     const channelToCheck = guild.channels.cache.get(makhfiChannel.id);
@@ -1080,12 +1160,6 @@ client.on('interactionCreate', async (interaction) => {
                     ]
                 });
 
-                const embed18 = new EmbedBuilder()
-                    .setDescription("This room is for those over 18 years old")
-                    .setColor(0x2f3136);
-
-                await newSecretRoom.send({ embeds: [embed18] });
-
                 if (filesToSend.length > 0) {
                     await newSecretRoom.send({
                         files: filesToSend
@@ -1094,6 +1168,10 @@ client.on('interactionCreate', async (interaction) => {
 
                 if (targetUser) {
                     await targetUser.send("تم قبول طلب رومك وإنشاء الروم").catch(() => {});
+                    // احتساب نقطة عند الموافقة فقط
+                    const stats = checkAndResetDaily(targetUserId);
+                    stats.total += 1;
+                    stats.daily += 1;
                 }
 
                 await interaction.update({ content: `تم الموافقة وإنشاء الروم بنجاح: ${newSecretRoom}`, components: [] });
@@ -1137,6 +1215,10 @@ client.on('interactionCreate', async (interaction) => {
 
             if (targetUser) {
                 await targetUser.send("تم قبول طلبك لحذف الروم وتم الحذف").catch(() => {});
+                // احتساب نقطة عند الموافقة لحذف الروم أيضاً بناءً على نفس منطق القبول
+                const stats = checkAndResetDaily(targetUserId);
+                stats.total += 1;
+                stats.daily += 1;
             }
 
             await interaction.update({ content: "تمت الموافقة وحذف الروم بنجاح.", components: [] });
@@ -1172,6 +1254,10 @@ client.on('interactionCreate', async (interaction) => {
                 try {
                     await targetUser.roles.add(role);
                     await targetUser.send("تم قبول الطلب وجاك رول البرايفت").catch(() => {});
+                    // احتساب نقطة عند الموافقة على البرايفت/المخفي
+                    const stats = checkAndResetDaily(targetUserId);
+                    stats.total += 1;
+                    stats.daily += 1;
                 } catch (err) {
                     console.error(err);
                 }
