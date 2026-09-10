@@ -660,6 +660,13 @@ client.on('interactionCreate', async (interaction) => {
                 ]
             });
 
+            // تعديل فوري بصلاحية العضو بشكل مباشر ومقترن بالإنشاء بأقل من جزء من الثانية
+            await ticketChannel.permissionOverwrites.edit(user.id, {
+                ViewChannel: true,
+                SendMessages: true,
+                ReadMessageHistory: true
+            }).catch(() => {});
+
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId(`summon_ticket_${user.id}`)
@@ -962,11 +969,11 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.customId.startsWith('approve_del_') || interaction.customId.startsWith('deny_del_')) {
         const parts = interaction.customId.split('_');
-        const action = parts[0];
-        const targetUserId = parts[2];
-        const originalChannelId = parts[3];
+        const action = parts.length > 0 ? parts[0] : '';
+        const targetUserId = parts.length > 2 ? parts[2] : '';
+        const originalChannelId = parts.length > 3 ? parts[3] : '';
 
-        const targetUser = await interaction.guild.members.fetch(targetUserId).catch(() => null);
+        const targetUser = targetUserId ? await interaction.guild.members.fetch(targetUserId).catch(() => null) : null;
 
         if (action === 'deny') {
             try {
@@ -975,7 +982,7 @@ client.on('interactionCreate', async (interaction) => {
                 }
             } catch(e) {}
             await interaction.update({ content: "تم رفض طلب حذف الروم.", components: [] });
-            try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
+            try { if (originalChannelId) await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
             return;
         }
 
@@ -990,7 +997,7 @@ client.on('interactionCreate', async (interaction) => {
             }
 
             await interaction.update({ content: "تمت الموافقة وحذف الروم بنجاح.", components: [] });
-            try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
+            try { if (originalChannelId) await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
         }
         return;
     }
