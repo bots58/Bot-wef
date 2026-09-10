@@ -60,6 +60,7 @@ const CONFIG = {
     secretApprovalChannel: "1545859261526048890",
     topChannelId: "1547705159830863912",
     makhfiApprovalChannel: "1547692687195635813",
+    linkRoomTarget: "1547714756222128208",
 
     secretCategories: [
         "1545859590506152096",
@@ -75,6 +76,7 @@ const CONFIG = {
 };
 
 const summonCooldowns = new Map();
+const linkCooldowns = new Map();
 const pendingNasharEdits = new Set();
 let customNasharLinks = 
 `discord.gg/freesecret
@@ -196,6 +198,63 @@ client.on('messageCreate', async (message) => {
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
     const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) || hasAdminRole;
 
+    // نظام منع إرسال الروابط إلا لمن يملك الرول المحدد
+    const linkRegex = /(https?:\/\/[^\s]+|discord\.gg\/[^\s]+|discord\.com\/invite\/[^\s]+)/i;
+    if (linkRegex.test(message.content)) {
+        if (!message.member.roles.cache.has("1545853891101466746") && !hasAdminRole && !isOwner) {
+            try {
+                await message.delete();
+                const warningMsg = await message.channel.send({ content: `${message.author} ممنوع إرسال الروابط هنا!` });
+                setTimeout(async () => {
+                    try { await warningMsg.delete(); } catch(e) {}
+                }, 4000);
+            } catch (e) {}
+            return;
+        }
+    }
+
+    if (message.channel.id === CONFIG.linkRoomTarget) {
+        try { await message.delete(); } catch(e) {}
+
+        const userId = message.author.id;
+        const now = Date.now();
+        const cooldownDuration = 3 * 60 * 60 * 1000; 
+
+        if (linkCooldowns.has(userId)) {
+            const expirationTime = linkCooldowns.get(userId);
+            if (now < expirationTime) {
+                const timeLeft = expirationTime - now;
+                const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+                const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+                
+                const timeString = `${hours}:${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                
+                const warningMsg = await message.channel.send({ content: `${message.author} لازم تنتظر \`${timeString}\`` });
+                setTimeout(async () => {
+                    try { await warningMsg.delete(); } catch(e) {}
+                }, 5000);
+                return;
+            }
+        }
+
+        linkCooldowns.set(userId, now + cooldownDuration);
+
+        try {
+            await message.author.send(`ارسل الرابط لعشرة واستلم البرايفت وقحبة تعرض لك\n\n${customNasharLinks}`);
+            const successNotice = await message.channel.send({ content: `${message.author} تم إرسال الرابط لك بالخاص.` });
+            setTimeout(async () => {
+                try { await successNotice.delete(); } catch(e) {}
+            }, 5000);
+        } catch (err) {
+            const errNotice = await message.channel.send({ content: `${message.author} يرجى فتح الخاص لتلقي الرابط!` });
+            setTimeout(async () => {
+                try { await errNotice.delete(); } catch(e) {}
+            }, 5000);
+        }
+        return;
+    }
+
     const msgContentTrimmed = message.content.trim();
     if (msgContentTrimmed === "اغلاق" || msgContentTrimmed === "إغلاق") {
         if (message.member.roles.cache.has("1545853891101466746") || hasAdminRole) {
@@ -301,8 +360,17 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    if (hasAdminRole && (message.content.startsWith("رسالة") || message.content.startsWith("message"))) {
-        const args = message.content.replace(/^(رسالة|message)/, "").trim();
+    if ((message.content.startsWith("رسالة") || message.content.startsWith("رساله"))) {
+        if (!message.member.roles.cache.has("1545853891101466746") && !hasAdminRole) {
+            try { await message.delete(); } catch(e) {}
+            const errNotice = await message.channel.send({ content: `${message.author} هذا الأمر مخصص فقط لمن يملك الرول المعتمد.` });
+            setTimeout(async () => {
+                try { await errNotice.delete(); } catch(e) {}
+            }, 5000);
+            return;
+        }
+
+        const args = message.content.replace(/^(رسالة|رساله)/, "").trim();
         const filesToSend = [];
 
         for (const [id, attachment] of message.attachments) {
@@ -317,8 +385,13 @@ client.on('messageCreate', async (message) => {
 
         try { await message.delete(); } catch(e) {}
 
+        const textToSend = args.length > 0 ? args : "This room is for those over 18 years old";
+        const embed = new EmbedBuilder()
+            .setDescription(textToSend)
+            .setColor(0x2b2d31);
+
         await message.channel.send({
-            content: (args.length > 0 ? args + "\n" : "") + "||ودك تاخذ المخفي بدون قروشها||",
+            embeds: [embed],
             files: filesToSend
         });
         return;
@@ -516,13 +589,16 @@ client.on('messageCreate', async (message) => {
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('open_makhfi_room')
-                .setLabel('مخفي')
+                .setLabel('برايفت')
                 .setStyle(ButtonStyle.Secondary)
         );
 
-        // تم تحديث الرسالة بالكامل وإزالة النص الأجنبي واستبداله بـ Spoiler والنص المطلوب بدقة
+        const embed = new EmbedBuilder()
+            .setDescription("ودك بالبرايفت ؟ ارسل الرابط لعشره وفك من تحت")
+            .setColor(0x2b2d31);
+
         await message.channel.send({
-            content: "||هذا إذا تبي المخفي وبدون قروشة اضغط تحت||\n\nاضغط تحت",
+            embeds: [embed],
             components: [row]
         });
         try { await message.delete(); } catch(e) {}
@@ -629,7 +705,6 @@ client.on('messageCreate', async (message) => {
             }
         }
 
-        // إرسال تنبيه فوري للعضو في رومه ومنشنه
         const replyNotice = await message.channel.send(`تم إرسال طلبك للإدارة، انتظر الموافقة ${message.author}`);
 
         const requestChannel = message.guild.channels.cache.get(CONFIG.makhfiApprovalChannel);
@@ -645,7 +720,6 @@ client.on('messageCreate', async (message) => {
                     .setStyle(ButtonStyle.Secondary)
             );
 
-            // إرسال محتوى العضو وصوره بالكامل كما هي مع تنشنة العضو في روم الإدارة المحدد
             await requestChannel.send({
                 content: `طلب رول مخفي من ${message.author}\n\n${userContent}`,
                 files: filesToSend,
@@ -653,7 +727,6 @@ client.on('messageCreate', async (message) => {
             });
         }
 
-        // حذف الروم بعد 5 ثوانٍ من إرسال رسالة التنبيه
         setTimeout(async () => {
             try {
                 await message.channel.delete();
@@ -1076,7 +1149,6 @@ client.on('interactionCreate', async (interaction) => {
             await makhfiChannel.send(`ارسل دليلك من صور وبينرسل طلبك للادارة ${user}`);
             await interaction.reply({ content: `تم انشاء الروم: ${makhfiChannel}`, ephemeral: true });
 
-            // الحذف التلقائي خلال 10 دقائق (600,000 ملي ثانية) لكل رومات المخفي بغض النظر عن حالة القبول أو الرفض
             setTimeout(async () => {
                 try {
                     const channelToCheck = guild.channels.cache.get(makhfiChannel.id);
@@ -1226,7 +1298,7 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.customId.startsWith('approve_makhfi_') || interaction.customId.startsWith('deny_makhfi_')) {
         const parts = interaction.customId.split('_');
-        const action = parts[0];
+        const action = parts.0;
         const targetUserId = parts[2];
         const originalChannelId = parts[3];
 
