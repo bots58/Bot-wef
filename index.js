@@ -620,7 +620,6 @@ client.on('interactionCreate', async (interaction) => {
         const guild = interaction.guild;
         const user = interaction.user;
 
-        // فحص سريع فائق بالبحث في القنوات الموجودة أو صلاحيات التراخيص للتأكد مما إذا كان لديه تكت مفتوح مسبقاً
         const existingTicket = guild.channels.cache.find(c => 
             (c.name.startsWith('ticket-') || c.parentId === CONFIG.ticketCategory1 || c.parentId === CONFIG.ticketCategory2) && 
             c.permissionOverwrites && 
