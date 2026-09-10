@@ -965,7 +965,7 @@ client.on('interactionCreate', async (interaction) => {
         const parts = interaction.customId.split('_');
         const action = parts[0];
         const targetUserId = parts[2];
-        .originalChannelId = parts[3];
+        const originalChannelId = parts[3];
 
         const targetUser = await interaction.guild.members.fetch(targetUserId).catch(() => null);
 
