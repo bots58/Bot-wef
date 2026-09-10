@@ -578,30 +578,27 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
+            // هنا تم ضبط الروم بحيث يعتمد على صلاحيات الكاتيجوري تلقائياً ويضيف فقط صلاحية صاحب التكت ومعه السبورت والإدارة بدقة
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${user.username}`,
                 type: 0,
                 parent: CONFIG.ticketCategory1,
                 permissionOverwrites: [
                     {
-                        id: guild.id, // Everyone
-                        Deny: [PermissionFlagsBits.ViewChannel]
-                    },
-                    {
-                        id: user.id, // صاحب التكت
+                        id: user.id,
                         Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     },
                     {
-                        id: CONFIG.ticketSupportPingRole, // رتبة السبورت المطلوبة حصراً (1545853407825231962)
+                        id: CONFIG.ticketSupportPingRole,
                         Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
                         Deny: [PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
                     },
                     {
-                        id: CONFIG.supportRole, // رتبة السبورت الاحتياطية
+                        id: CONFIG.supportRole,
                         Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     },
                     {
-                        id: CONFIG.adminControlRole, // رتبة الإدارة
+                        id: CONFIG.adminControlRole,
                         Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     }
                 ]
