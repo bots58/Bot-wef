@@ -1151,7 +1151,7 @@ client.on('interactionCreate', async (interaction) => {
         const targetUserId = parts[2];
         const originalChannelId = parts[3];
 
-        const targetUser = await interaction.guild.members.fetch(targetUserId).catch(() =>.null).catch(() => null);
+        const targetUser = await interaction.guild.members.fetch(targetUserId).catch(() => null);
 
         if (action === 'deny') {
             try {
@@ -1179,7 +1179,7 @@ client.on('interactionCreate', async (interaction) => {
 
             await interaction.update({ content: "تمت الموافقة وإعطاء الرول بنجاح.", components: [] });
             setTimeout(async () => {
-                try { await interaction.guild.channels.cache.get(originalActionId)?.delete() || await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
+                try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
             }, 300000);
         }
         return;
