@@ -126,7 +126,7 @@ discord.gg/tah`
         }, 400);
 
         setTimeout(async () => {
-            await message.channel.send("**الطريقة تحط الرابط بالبايو وتدخل السيرفرات الي فوق وتنسخ الكلام الطويل وتنشر وتصور وترسل لنا وبيجيك الرول وقحـ،بة تعرض لك");
+            await message.channel.send("**الطريقة تحط الرابط بالبايو وتدخل السيرفرات الي فوق وتنسخ الكلام الطويل وتنشر وتصور وترسل لنا وبيجيك الرول وقحـ،بة تعرض لك**");
         }, 700);
 
         return;
@@ -374,6 +374,7 @@ discord.gg/tah`
         return;
     }
 
+    // === التعامل مع رسائل طلب الإنشاء (wef) ===
     if (message.channel.name.startsWith("wef-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -411,15 +412,17 @@ discord.gg/tah`
         }
 
         const tempChannel = message.channel;
+        // حذف الروم بعد 5 ثواني من إرسال الطلب بدلاً من 90 ثانية
         setTimeout(async () => {
             try {
                 await tempChannel.delete();
             } catch (e) {}
-        }, 90000);
+        }, 5000); 
 
         return;
     }
 
+    // === التعامل مع رسائل طلب الحذف (delete-room) ===
     if (message.channel.name.startsWith("delete-room-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -455,6 +458,15 @@ discord.gg/tah`
         }
 
         try { await message.reply("تم إرسال طلبك للإدارة للمراجعة."); } catch (e) {}
+        
+        const tempChannel = message.channel;
+        // حذف الروم بعد 5 ثواني من كتابة الطلب
+        setTimeout(async () => {
+            try {
+                await tempChannel.delete();
+            } catch (e) {}
+        }, 5000);
+
         return;
     }
 
@@ -579,6 +591,14 @@ client.on('interactionCreate', async (interaction) => {
                     },
                     {
                         id: user.id,
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    },
+                    {
+                        id: CONFIG.supportRole,
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    },
+                    {
+                        id: CONFIG.adminControlRole,
                         Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     },
                     {
@@ -735,6 +755,17 @@ client.on('interactionCreate', async (interaction) => {
             });
 
             await interaction.reply({ content: `تم إنشاء روم الطلب الخاص بك: ${wefChannel}`, ephemeral: true });
+
+            // مؤقت 10 دقايق (600,000 ملي ثانية) لحذف الروم إذا ما انكتب فيه شيء
+            setTimeout(async () => {
+                try {
+                    const channelToCheck = guild.channels.cache.get(wefChannel.id);
+                    if (channelToCheck) {
+                        await channelToCheck.delete();
+                    }
+                } catch (e) {}
+            }, 600000);
+
         } catch (err) {
             await interaction.reply({ content: "حدث خطأ أثناء إنشاء الروم.", ephemeral: true });
         }
@@ -767,10 +798,10 @@ client.on('interactionCreate', async (interaction) => {
                     },
                     {
                         id: CONFIG.supportRole,
-                        Deny: [PermissionFlagsBits.ViewChannel]
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     },
                     {
-                        id: "1545853891101466746",
+                        id: CONFIG.adminControlRole,
                         Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     }
                 ]
@@ -778,6 +809,17 @@ client.on('interactionCreate', async (interaction) => {
 
             await delChannel.send("اكتب سبب حذف الروم ومنشن الروم وبينرسل طلبك للادارة واذا تم الموافقة عليه بينحذف");
             await interaction.reply({ content: `تم إنشاء روم طلب الحذف: ${delChannel}`, ephemeral: true });
+
+            // مؤقت 10 دقايق (600,000 ملي ثانية) لحذف الروم إذا ما انكتب فيه شيء
+            setTimeout(async () => {
+                try {
+                    const channelToCheck = guild.channels.cache.get(delChannel.id);
+                    if (channelToCheck) {
+                        await channelToCheck.delete();
+                    }
+                } catch (e) {}
+            }, 600000);
+
         } catch (err) {
             await interaction.reply({ content: "حدث خطأ أثناء إنشاء الروم.", ephemeral: true });
         }
