@@ -78,31 +78,33 @@ client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
-// ميزة جديدة تلقائية: أي روم ينشأ في كاتيجوري التكتات يتم ضبط صلاحياته أوتوماتيكياً فوراً بدون أي تدخل يدوي
+// الأمان التام الفوري: ضبط الصلاحيات مسبقاً قبل نزول الروم بالكامل لأي روم ينشأ في كاتيجوريات التكتات
 client.on('channelCreate', async (channel) => {
     if (!channel.guild) return;
     if (channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
         try {
             await channel.permissionOverwrites.set([
                 {
-                    id: channel.guild.id, // @everyone
+                    id: channel.guild.id, // @everyone ممنوع تماماً من رؤية الروم
                     Deny: [PermissionFlagsBits.ViewChannel]
                 },
                 {
                     id: CONFIG.ticketSupportPingRole,
-                    Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
+                    Deny: [PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
                 },
                 {
                     id: CONFIG.supportRole,
-                    Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
+                    Deny: [PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
                 },
                 {
                     id: CONFIG.adminControlRole,
-                    Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
                 }
             ]);
         } catch (err) {
-            console.error("Error auto-syncing new ticket channel permissions:", err);
+            console.error("Error pre-setting ticket channel permissions:", err);
         }
     }
 });
@@ -603,7 +605,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            // إنشاء التكت بالكاتيجوري الأول مع دمج صلاحيات صاحب التكت وصلاحيات السبورت الأساسية فوراً
+            // إنشاء التكت بصلاحيات مسبقة مخفية تماماً عن الجميع ومنع التفاعل والثريدز عن السبورت
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${user.username}`,
                 type: 0,
@@ -619,11 +621,13 @@ client.on('interactionCreate', async (interaction) => {
                     },
                     {
                         id: CONFIG.ticketSupportPingRole,
-                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
+                        Deny: [PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
                     },
                     {
                         id: CONFIG.supportRole,
-                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
+                        Deny: [PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
                     },
                     {
                         id: CONFIG.adminControlRole,
@@ -805,6 +809,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
+            // روم طلب الحذف خاص بك وبصلاحيات الإدارة فقط (رتبة السبورت لا تشاهدها نهائياً بناءً على طلبك)
             const delChannel = await guild.channels.create({
                 name: `delete-room-${user.username}`,
                 type: 0,
@@ -816,10 +821,6 @@ client.on('interactionCreate', async (interaction) => {
                     },
                     {
                         id: user.id,
-                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    },
-                    {
-                        id: CONFIG.supportRole,
                         Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     },
                     {
@@ -894,7 +895,6 @@ client.on('interactionCreate', async (interaction) => {
             try {
                 const roomName = contentBody.slice(0, 95) || `room-${targetUserId}`;
 
-                // هنا الروم السري مخصص لك وحدك وللإدارة فقط بناءً على طلبك
                 const newSecretRoom = await guild.channels.create({
                     name: roomName,
                     type: 0,
