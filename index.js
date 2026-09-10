@@ -442,6 +442,10 @@ client.on('messageCreate', async (message) => {
             return;
         }
 
+        const embed18 = new EmbedBuilder()
+            .setDescription("This room is for those over 18 years old")
+            .setColor(0x2f3136);
+
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('open_makhfi_room')
@@ -450,6 +454,7 @@ client.on('messageCreate', async (message) => {
         );
 
         await message.channel.send({
+            embeds: [embed18],
             content: "ودك تاخذ المخفي بدون قروشه\nاضغط تحت",
             components: [row]
         });
@@ -577,7 +582,7 @@ client.on('messageCreate', async (message) => {
             });
         }
 
-        const confirmationNotice = await message.channel.send("تم إرسال طلبك للإدارة");
+        const confirmationNotice = await message.channel.send("تم انشاء الروم");
         setTimeout(async () => {
             try { await confirmationNotice.delete(); } catch(e) {}
         }, 5000);
@@ -985,8 +990,13 @@ client.on('interactionCreate', async (interaction) => {
                 ]
             });
 
+            const embed18 = new EmbedBuilder()
+                .setDescription("This room is for those over 18 years old")
+                .setColor(0x2f3136);
+
+            await makhfiChannel.send({ embeds: [embed18] });
             await makhfiChannel.send(`ارسل دليلك من صور وبينرسل طلبك للادارة ${user}`);
-            await interaction.reply({ content: `تم إنشاء روم المخفي: ${makhfiChannel}`, ephemeral: true });
+            await interaction.reply({ content: `تم انشاء الروم: ${makhfiChannel}`, ephemeral: true });
 
             setTimeout(async () => {
                 try {
@@ -1141,7 +1151,7 @@ client.on('interactionCreate', async (interaction) => {
         const targetUserId = parts[2];
         const originalChannelId = parts[3];
 
-        const targetUser = await interaction.guild.members.fetch(targetUserId).catch(() => null);
+        const targetUser = await interaction.guild.members.fetch(targetUserId).catch(() =>.null).catch(() => null);
 
         if (action === 'deny') {
             try {
@@ -1169,7 +1179,7 @@ client.on('interactionCreate', async (interaction) => {
 
             await interaction.update({ content: "تمت الموافقة وإعطاء الرول بنجاح.", components: [] });
             setTimeout(async () => {
-                try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
+                try { await interaction.guild.channels.cache.get(originalActionId)?.delete() || await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
             }, 300000);
         }
         return;
