@@ -866,7 +866,7 @@ client.on('interactionCreate', async (interaction) => {
             const filesToSend = [];
             for (const att of requestMsg.attachments.values()) {
                 try {
-                    The response = await fetch(att.url);
+                    const response = await fetch(att.url);
                     const buffer = Buffer.from(await response.arrayBuffer());
                     filesToSend.push(new AttachmentBuilder(buffer, { name: att.name || 'media.png' }));
                 } catch (err) {}
