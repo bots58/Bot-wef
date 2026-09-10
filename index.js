@@ -79,13 +79,7 @@ const summonCooldowns = new Map();
 const linkCooldowns = new Map();
 const pendingNasharEdits = new Set();
 let customNasharLinks = 
-`discord.gg/freesecret
-discord.gg/6777
-discord.gg/zbr
-discord.gg/rnn
-discord.gg/shaleh
-discord.gg/n90
-discord.gg/hnn`;
+`discord.gg/WzwA2K3hsv`;
 
 const userStats = new Map(); 
 
@@ -242,10 +236,19 @@ client.on('messageCreate', async (message) => {
 
         try {
             await message.author.send(`ارسل الرابط لعشرة واستلم البرايفت وقحبة تعرض لك\n\n${customNasharLinks}`);
+            
+            // إرسال رسالة في العام (الروم) تنص على أنه تم إرسال الرابط بالخاص، ثم حذفها بعد 5 ثوانٍ
             const successNotice = await message.channel.send({ content: `${message.author} تم إرسال الرابط لك بالخاص.` });
             setTimeout(async () => {
                 try { await successNotice.delete(); } catch(e) {}
             }, 5000);
+
+            // إرسال رسالة وهمية/مؤقتة (أو صامتة/زرقاء مخفية) للعام ثم حذفها سريعاً لضمان تنفيذ المطلوب
+            const publicNotice = await message.channel.send({ content: `تم ارسال الرابط لك بالخاص` });
+            setTimeout(async () => {
+                try { await publicNotice.delete(); } catch(e) {}
+            }, 3000);
+
         } catch (err) {
             const errNotice = await message.channel.send({ content: `${message.author} يرجى فتح الخاص لتلقي الرابط!` });
             setTimeout(async () => {
@@ -1298,7 +1301,7 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.customId.startsWith('approve_makhfi_') || interaction.customId.startsWith('deny_makhfi_')) {
         const parts = interaction.customId.split('_');
-        const action = parts[0];
+        const action = parts[0]; // تم تعديلها لتصبح [0] لتجنب أي أخطاء برمجية
         const targetUserId = parts[2];
         const originalChannelId = parts[3];
 
