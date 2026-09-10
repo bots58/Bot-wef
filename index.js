@@ -78,6 +78,35 @@ client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
+// ميزة جديدة تلقائية: أي روم ينشأ في كاتيجوري التكتات يتم ضبط صلاحياته أوتوماتيكياً فوراً بدون أي تدخل يدوي
+client.on('channelCreate', async (channel) => {
+    if (!channel.guild) return;
+    if (channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
+        try {
+            await channel.permissionOverwrites.set([
+                {
+                    id: channel.guild.id, // @everyone
+                    Deny: [PermissionFlagsBits.ViewChannel]
+                },
+                {
+                    id: CONFIG.ticketSupportPingRole,
+                    Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                },
+                {
+                    id: CONFIG.supportRole,
+                    Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                },
+                {
+                    id: CONFIG.adminControlRole,
+                    Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                }
+            ]);
+        } catch (err) {
+            console.error("Error auto-syncing new ticket channel permissions:", err);
+        }
+    }
+});
+
 client.on('guildMemberAdd', async (member) => {
     try {
         if (CONFIG.unverifiedRole) {
@@ -132,7 +161,6 @@ discord.gg/tah`
         return;
     }
 
-    // --- أمر البرودكاست (bc) ---
     if (hasAdminRole && message.content.startsWith("bc")) {
         const args = message.content.slice(2).trim();
         const filesToSend = [];
@@ -172,7 +200,6 @@ discord.gg/tah`
         return;
     }
 
-    // --- أمر "رسالة" لإرسال محتوى مع رسالة الـ 18 سنة في أي روم ---
     if (hasAdminRole && (message.content.startsWith("رسالة") || message.content.startsWith("message"))) {
         const args = message.content.replace(/^(رسالة|message)/, "").trim();
         const filesToSend = [];
@@ -374,7 +401,6 @@ discord.gg/tah`
         return;
     }
 
-    // === التعامل مع رسائل طلب الإنشاء (wef) ===
     if (message.channel.name.startsWith("wef-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -421,7 +447,6 @@ discord.gg/tah`
         return;
     }
 
-    // === التعامل مع رسائل طلب الحذف (delete-room) ===
     if (message.channel.name.startsWith("delete-room-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -578,20 +603,23 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            // هنا تم ضبط الروم بحيث يعتمد على صلاحيات الكاتيجوري تلقائياً ويضيف فقط صلاحية صاحب التكت ومعه السبورت والإدارة بدقة
+            // إنشاء التكت بالكاتيجوري الأول مع دمج صلاحيات صاحب التكت وصلاحيات السبورت الأساسية فوراً
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${user.username}`,
                 type: 0,
                 parent: CONFIG.ticketCategory1,
                 permissionOverwrites: [
                     {
+                        id: guild.id, // @everyone ممنوع تماماً
+                        Deny: [PermissionFlagsBits.ViewChannel]
+                    },
+                    {
                         id: user.id,
                         Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     },
                     {
                         id: CONFIG.ticketSupportPingRole,
-                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
-                        Deny: [PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     },
                     {
                         id: CONFIG.supportRole,
@@ -866,6 +894,7 @@ client.on('interactionCreate', async (interaction) => {
             try {
                 const roomName = contentBody.slice(0, 95) || `room-${targetUserId}`;
 
+                // هنا الروم السري مخصص لك وحدك وللإدارة فقط بناءً على طلبك
                 const newSecretRoom = await guild.channels.create({
                     name: roomName,
                     type: 0,
