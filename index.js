@@ -90,13 +90,13 @@ client.on('channelCreate', async (channel) => {
                 },
                 {
                     id: CONFIG.ticketSupportPingRole,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
-                    deny: [PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
+                    deny: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManagePermissions, PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
                 },
                 {
                     id: CONFIG.supportRole,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
-                    deny: [PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
+                    deny: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManagePermissions, PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
                 },
                 {
                     id: CONFIG.adminControlRole,
@@ -605,14 +605,14 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            // هنا تم تعديل الإنشاء ليكون Private Channel حقيقي بالصلاحيات الصحيحة للرتب
+            // روم برايفت تماماً: @everyone مغلق، وصاحب التكت يرى ويكتب، ورتب السبورت ViewChannel و SendMessages فقط، والإدارة بالكامل
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${user.username}`,
                 type: 0,
                 parent: CONFIG.ticketCategory1,
                 permissionOverwrites: [
                     {
-                        id: guild.id, // @everyone منع تام من الرؤية (وهو اللي يخلي زر Private Channel يولع أبيض تلقائياً)
+                        id: guild.id, // @everyone مغلق تماماً (يضيء الزر الأبيض Private تلقائياً)
                         deny: [PermissionFlagsBits.ViewChannel]
                     },
                     {
@@ -620,17 +620,17 @@ client.on('interactionCreate', async (interaction) => {
                         allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     },
                     {
-                        id: CONFIG.ticketSupportPingRole, // رتبة السبورت كـ Role وليس كعضو مفرد
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
-                        deny: [PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
+                        id: CONFIG.ticketSupportPingRole, // رتبة السبورت الأولى (ViewChannel و SendMessages فقط)
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
+                        deny: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManagePermissions, PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
                     },
                     {
-                        id: CONFIG.supportRole, // رتبة السبورت الأساسية كـ Role
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
-                        deny: [PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
+                        id: CONFIG.supportRole, // رتبة السبورت الأساسية (ViewChannel و SendMessages فقط)
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
+                        deny: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManagePermissions, PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
                     },
                     {
-                        id: CONFIG.adminControlRole, // رتبة الإدارة
+                        id: CONFIG.adminControlRole, // رتبة الإدارة بكامل الصلاحيات العادية
                         allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
                     }
                 ]
@@ -776,7 +776,7 @@ client.on('interactionCreate', async (interaction) => {
                     },
                     {
                         id: CONFIG.supportRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
                     }
                 ]
             });
@@ -824,7 +824,7 @@ client.on('interactionCreate', async (interaction) => {
                     },
                     {
                         id: CONFIG.adminControlRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
                     }
                 ]
             });
