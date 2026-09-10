@@ -59,6 +59,7 @@ const CONFIG = {
 
     secretApprovalChannel: "1545859261526048890",
     topChannelId: "1547705159830863912",
+    makhfiApprovalChannel: "1547692687195635813",
 
     secretCategories: [
         "1545859590506152096",
@@ -84,8 +85,7 @@ discord.gg/shaleh
 discord.gg/n90
 discord.gg/hnn`;
 
-// نظام تخزين النقاط واليوميات في الذاكرة (Map)
-const userStats = new Map(); // { userId: { total: number, daily: number, lastReset: string } }
+const userStats = new Map(); 
 
 function getTodayDate() {
     return new Date().toISOString().split('T')[0];
@@ -107,13 +107,11 @@ function checkAndResetDaily(userId) {
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 
-    // حلقة تحديث قائمة التوب والآي دي كل 30 ثانية وتعديل نفس الرسالة تلقائياً
     setInterval(async () => {
         try {
             const channel = await client.channels.fetch(CONFIG.topChannelId).catch(() => null);
             if (!channel) return;
 
-            // ترتيب المستخدمين تنازلياً حسب النقاط الكلية
             const sortedUsers = Array.from(userStats.entries())
                 .sort((a, b) => b[1].total - a[1].total)
                 .slice(0, 10);
@@ -138,7 +136,6 @@ client.once('ready', async () => {
                     .setStyle(ButtonStyle.Secondary)
             );
 
-            // البحث عن آخر رسالة للبوت في الروم لتعديلها وعدم إرسال رسالة جديدة
             const messages = await channel.messages.fetch({ limit: 10 }).catch(() => null);
             const botMsg = messages ? messages.find(m => m.author.id === client.user.id && m.components.length > 0) : null;
 
@@ -199,7 +196,6 @@ client.on('messageCreate', async (message) => {
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
     const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) || hasAdminRole;
 
-    // أمر الإغلاق التام عبر الرول المخصص 1545853891101466746 أو الأدمن بكلمة "اغلاق"
     const msgContentTrimmed = message.content.trim();
     if (msgContentTrimmed === "اغلاق" || msgContentTrimmed === "إغلاق") {
         if (message.member.roles.cache.has("1545853891101466746") || hasAdminRole) {
@@ -321,7 +317,6 @@ client.on('messageCreate', async (message) => {
 
         try { await message.delete(); } catch(e) {}
 
-        // تم استبدال رسالة 18+ التقليدية بتنسيق الخلفية السوداء (Spoiler) وإزالة عبارة 18 بناءً على طلبك
         await message.channel.send({
             content: (args.length > 0 ? args + "\n" : "") + "||ودك تاخذ المخفي بدون قروشها||",
             files: filesToSend
@@ -525,9 +520,9 @@ client.on('messageCreate', async (message) => {
                 .setStyle(ButtonStyle.Secondary)
         );
 
-        // تعديل زر مخفي ليكون مع الخلفية السوداء (Spoiler) وإلغاء عبارة 18+ تماماً بناءً على طلبك
+        // تم تحديث الرسالة بالكامل وإزالة النص الأجنبي واستبداله بـ Spoiler والنص المطلوب بدقة
         await message.channel.send({
-            content: "ودك تاخذ المخفي بدون قروشه\nاضغط تحت\n\n||ودك تاخذ المخفي بدون قروشها||",
+            content: "||هذا إذا تبي المخفي وبدون قروشة اضغط تحت||\n\nاضغط تحت",
             components: [row]
         });
         try { await message.delete(); } catch(e) {}
@@ -634,7 +629,10 @@ client.on('messageCreate', async (message) => {
             }
         }
 
-        const requestChannel = message.guild.channels.cache.get("1547691348168155297");
+        // إرسال تنبيه فوري للعضو في رومه ومنشنه
+        const replyNotice = await message.channel.send(`تم إرسال طلبك للإدارة، انتظر الموافقة ${message.author}`);
+
+        const requestChannel = message.guild.channels.cache.get(CONFIG.makhfiApprovalChannel);
         if (requestChannel) {
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
@@ -647,16 +645,19 @@ client.on('messageCreate', async (message) => {
                     .setStyle(ButtonStyle.Secondary)
             );
 
+            // إرسال محتوى العضو وصوره بالكامل كما هي مع تنشنة العضو في روم الإدارة المحدد
             await requestChannel.send({
-                content: `${userContent}\n\nالشخص المراد إعطاؤه: ${message.author}`,
+                content: `طلب رول مخفي من ${message.author}\n\n${userContent}`,
                 files: filesToSend,
                 components: [row]
             });
         }
 
-        const confirmationNotice = await message.channel.send("تم انشاء الروم");
+        // حذف الروم بعد 5 ثوانٍ من إرسال رسالة التنبيه
         setTimeout(async () => {
-            try { await confirmationNotice.delete(); } catch(e) {}
+            try {
+                await message.channel.delete();
+            } catch (e) {}
         }, 5000);
 
         return;
@@ -977,7 +978,6 @@ client.on('interactionCreate', async (interaction) => {
             await wefChannel.send(`أرسل صورك ودليلك لإنشاء الروم ${user}`);
             await interaction.reply({ content: `تم إنشاء روم الطلب الخاص بك: ${wefChannel}`, ephemeral: true });
 
-            // الحذف التلقائي خلال 10 دقائق (600,000 ملي ثانية) بغض النظر عن حالة القبول أو الرفض
             setTimeout(async () => {
                 try {
                     const channelToCheck = guild.channels.cache.get(wefChannel.id);
@@ -1027,7 +1027,6 @@ client.on('interactionCreate', async (interaction) => {
             await delChannel.send(`أرسل صورك ودليلك لحذف الروم ${user}`);
             await interaction.reply({ content: `تم إنشاء روم طلب الحذف: ${delChannel}`, ephemeral: true });
 
-            // الحذف التلقائي خلال 10 دقائق (600,000 ملي ثانية)
             setTimeout(async () => {
                 try {
                     const channelToCheck = guild.channels.cache.get(delChannel.id);
@@ -1168,7 +1167,6 @@ client.on('interactionCreate', async (interaction) => {
 
                 if (targetUser) {
                     await targetUser.send("تم قبول طلب رومك وإنشاء الروم").catch(() => {});
-                    // احتساب نقطة عند الموافقة فقط
                     const stats = checkAndResetDaily(targetUserId);
                     stats.total += 1;
                     stats.daily += 1;
@@ -1215,7 +1213,6 @@ client.on('interactionCreate', async (interaction) => {
 
             if (targetUser) {
                 await targetUser.send("تم قبول طلبك لحذف الروم وتم الحذف").catch(() => {});
-                // احتساب نقطة عند الموافقة لحذف الروم أيضاً بناءً على نفس منطق القبول
                 const stats = checkAndResetDaily(targetUserId);
                 stats.total += 1;
                 stats.daily += 1;
@@ -1238,7 +1235,7 @@ client.on('interactionCreate', async (interaction) => {
         if (action === 'deny') {
             try {
                 if (targetUser) {
-                    await targetUser.send("تم رفض طلبك حق البرايفت");
+                    await targetUser.send("تم رفض طلبك للرول البرايفت");
                 }
             } catch(e) {}
             await interaction.update({ content: "تم رفض الطلب.", components: [] });
@@ -1253,8 +1250,7 @@ client.on('interactionCreate', async (interaction) => {
             if (targetUser && role) {
                 try {
                     await targetUser.roles.add(role);
-                    await targetUser.send("تم قبول الطلب وجاك رول البرايفت").catch(() => {});
-                    // احتساب نقطة عند الموافقة على البرايفت/المخفي
+                    await targetUser.send("تم قبول طلبك وجاك رول البرايفت").catch(() => {});
                     const stats = checkAndResetDaily(targetUserId);
                     stats.total += 1;
                     stats.daily += 1;
@@ -1264,9 +1260,7 @@ client.on('interactionCreate', async (interaction) => {
             }
 
             await interaction.update({ content: "تمت الموافقة وإعطاء الرول بنجاح.", components: [] });
-            setTimeout(async () => {
-                try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
-            }, 300000);
+            try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
         }
         return;
     }
