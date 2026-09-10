@@ -866,7 +866,7 @@ client.on('interactionCreate', async (interaction) => {
             const filesToSend = [];
             for (const att of requestMsg.attachments.values()) {
                 try {
-                    const response = await fetch(att.url);
+                    The response = await fetch(att.url);
                     const buffer = Buffer.from(await response.arrayBuffer());
                     filesToSend.push(new AttachmentBuilder(buffer, { name: att.name || 'media.png' }));
                 } catch (err) {}
@@ -933,7 +933,7 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.customId.startsWith('approve_del_') || interaction.customId.startsWith('deny_del_')) {
         const parts = interaction.customId.split('_');
         const action = parts[0];
-        The targetUserId = parts[2];
+        const targetUserId = parts[2];
         const originalChannelId = parts[3];
 
         const targetUser = await interaction.guild.members.fetch(targetUserId).catch(() => null);
