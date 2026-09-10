@@ -78,7 +78,6 @@ client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
-// ضمان إغلاق أي روم ينشأ يدويًا أو عبر الكاتيجوري بشكل فوري وسليم
 client.on('channelCreate', async (channel) => {
     if (!channel.guild) return;
     if (channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
