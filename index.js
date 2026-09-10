@@ -90,13 +90,11 @@ client.on('channelCreate', async (channel) => {
                 },
                 {
                     id: CONFIG.ticketSupportPingRole,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-                    deny: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManagePermissions, PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
                     id: CONFIG.supportRole,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-                    deny: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManagePermissions, PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
                     id: CONFIG.adminControlRole,
@@ -605,32 +603,29 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            // روم برايفت تماماً: @everyone مغلق، وصاحب التكت يرى ويكتب، ورتب السبورت ViewChannel و SendMessages فقط، والإدارة بالكامل
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${user.username}`,
                 type: 0,
                 parent: CONFIG.ticketCategory1,
                 permissionOverwrites: [
                     {
-                        id: guild.id, // @everyone مغلق تماماً (يضيء الزر الأبيض Private تلقائياً)
+                        id: guild.id,
                         deny: [PermissionFlagsBits.ViewChannel]
                     },
                     {
-                        id: user.id, // صاحب التكت يرى ويكتب ويقرأ التاريخ
+                        id: user.id,
                         allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     },
                     {
-                        id: CONFIG.ticketSupportPingRole, // رتبة السبورت الأولى (ViewChannel و SendMessages فقط)
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-                        deny: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManagePermissions, PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
+                        id: CONFIG.ticketSupportPingRole,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     },
                     {
-                        id: CONFIG.supportRole, // رتبة السبورت الأساسية (ViewChannel و SendMessages فقط)
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-                        deny: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManagePermissions, PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
+                        id: CONFIG.supportRole,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     },
                     {
-                        id: CONFIG.adminControlRole, // رتبة الإدارة بكامل الصلاحيات العادية
+                        id: CONFIG.adminControlRole,
                         allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
                     }
                 ]
@@ -776,7 +771,7 @@ client.on('interactionCreate', async (interaction) => {
                     },
                     {
                         id: CONFIG.supportRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     }
                 ]
             });
@@ -824,7 +819,7 @@ client.on('interactionCreate', async (interaction) => {
                     },
                     {
                         id: CONFIG.adminControlRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     }
                 ]
             });
