@@ -412,7 +412,6 @@ discord.gg/tah`
         }
 
         const tempChannel = message.channel;
-        // حذف الروم بعد 5 ثواني من إرسال الطلب بدلاً من 90 ثانية
         setTimeout(async () => {
             try {
                 await tempChannel.delete();
@@ -460,7 +459,6 @@ discord.gg/tah`
         try { await message.reply("تم إرسال طلبك للإدارة للمراجعة."); } catch (e) {}
         
         const tempChannel = message.channel;
-        // حذف الروم بعد 5 ثواني من كتابة الطلب
         setTimeout(async () => {
             try {
                 await tempChannel.delete();
@@ -586,25 +584,25 @@ client.on('interactionCreate', async (interaction) => {
                 parent: CONFIG.ticketCategory1,
                 permissionOverwrites: [
                     {
-                        id: guild.id,
+                        id: guild.id, // Everyone
                         Deny: [PermissionFlagsBits.ViewChannel]
                     },
                     {
-                        id: user.id,
+                        id: user.id, // صاحب التكت
                         Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     },
                     {
-                        id: CONFIG.supportRole,
-                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    },
-                    {
-                        id: CONFIG.adminControlRole,
-                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    },
-                    {
-                        id: CONFIG.ticketSupportPingRole,
+                        id: CONFIG.ticketSupportPingRole, // رتبة السبورت المطلوبة حصراً (1545853407825231962)
                         Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
                         Deny: [PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
+                    },
+                    {
+                        id: CONFIG.supportRole, // رتبة السبورت الاحتياطية
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    },
+                    {
+                        id: CONFIG.adminControlRole, // رتبة الإدارة
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     }
                 ]
             });
@@ -756,7 +754,6 @@ client.on('interactionCreate', async (interaction) => {
 
             await interaction.reply({ content: `تم إنشاء روم الطلب الخاص بك: ${wefChannel}`, ephemeral: true });
 
-            // مؤقت 10 دقايق (600,000 ملي ثانية) لحذف الروم إذا ما انكتب فيه شيء
             setTimeout(async () => {
                 try {
                     const channelToCheck = guild.channels.cache.get(wefChannel.id);
@@ -810,7 +807,6 @@ client.on('interactionCreate', async (interaction) => {
             await delChannel.send("اكتب سبب حذف الروم ومنشن الروم وبينرسل طلبك للادارة واذا تم الموافقة عليه بينحذف");
             await interaction.reply({ content: `تم إنشاء روم طلب الحذف: ${delChannel}`, ephemeral: true });
 
-            // مؤقت 10 دقايق (600,000 ملي ثانية) لحذف الروم إذا ما انكتب فيه شيء
             setTimeout(async () => {
                 try {
                     const channelToCheck = guild.channels.cache.get(delChannel.id);
