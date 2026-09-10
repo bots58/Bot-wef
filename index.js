@@ -46,8 +46,7 @@ const CONFIG = {
     adminControlRole: "1545853891101466746", 
     ticketSupportPingRole: "1545853407825231962",
     
-    // أيدي أو اسم رول "برايفت" (تأكد من وضع الأيدي الصحيح هنا أو اسم الرول)
-    privateRole: "1547161341045776484", // ضع أيدي رول البرايفت هنا إذا أردت، أو استخدمه عبر الاسم في الأوديت
+    privateRole: "1547161341045776484", 
 
     roleRequestRoom: "1546928048174014566", 
     supportLogRoom: "1546933674673447042",
@@ -81,8 +80,7 @@ const CONFIG = {
 const summonCooldowns = new Map();
 const linkCooldowns = new Map();
 const pendingNasharEdits = new Set();
-let customNasharLinks = 
-`discord.gg/WzwA2K3hsv`;
+let customNasharLinks = `discord.gg/WzwA2K3hsv`;
 
 const userStats = new Map(); 
 
@@ -153,7 +151,6 @@ client.on('channelCreate', async (channel) => {
     if (!channel.guild) return;
     if (channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
         try {
-            // البحث عن رول "برايفت" بالاسم أو الأيدي لتعطيل رؤيته
             let privateRoleObj = channel.guild.roles.cache.get(CONFIG.privateRole);
             if (!privateRoleObj) {
                 privateRoleObj = channel.guild.roles.cache.find(r => r.name === "برايفت");
@@ -178,7 +175,6 @@ client.on('channelCreate', async (channel) => {
                 }
             ];
 
-            // إضافة رول البرايفت بمنعه من رؤية التكت إذا تم العثور عليه
             if (privateRoleObj) {
                 overwrites.push({
                     id: privateRoleObj.id,
@@ -638,8 +634,6 @@ client.on('messageCreate', async (message) => {
             }
         }
 
-        await message.reply({ content: `أرسل صورك ودليلك لإنشاء الروم ${message.author}` });
-
         const requestChannel = message.guild.channels.cache.get(CONFIG.secretApprovalChannel);
         if (requestChannel) {
             const row = new ActionRowBuilder().addComponents(
@@ -660,9 +654,11 @@ client.on('messageCreate', async (message) => {
             });
         }
 
-        const confirmationNotice = await message.channel.send("تم إرسال طلبك للإدارة، وإذا تمت الموافقة عليه بينشأ الروم.");
+        await message.reply({ content: `تم إرسال طلبك للإدارة، وإذا تمت الموافقة عليه بينشأ الروم.` });
         setTimeout(async () => {
-            try { await confirmationNotice.delete(); } catch(e) {}
+            try {
+                await message.channel.delete();
+            } catch(e) {}
         }, 5000);
 
         return;
@@ -702,9 +698,11 @@ client.on('messageCreate', async (message) => {
             });
         }
 
-        const confirmationNotice = await message.channel.send("تم إرسال طلبك للإدارة، وإذا تمت الموافقة عليه بينحذف.");
+        await message.reply({ content: `تم إرسال طلبك للإدارة، وإذا تمت الموافقة عليه بينحذف.` });
         setTimeout(async () => {
-            try { await confirmationNotice.delete(); } catch(e) {}
+            try {
+                await message.channel.delete();
+            } catch(e) {}
         }, 5000);
 
         return;
@@ -723,8 +721,6 @@ client.on('messageCreate', async (message) => {
                 filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
             }
         }
-
-        const replyNotice = await message.channel.send(`تم إرسال طلبك للإدارة، انتظر الموافقة ${message.author}`);
 
         const requestChannel = message.guild.channels.cache.get(CONFIG.makhfiApprovalChannel);
         if (requestChannel) {
@@ -746,6 +742,7 @@ client.on('messageCreate', async (message) => {
             });
         }
 
+        await message.reply({ content: `تم إرسال طلبك للإدارة، انتظر الموافقة ${message.author}` });
         setTimeout(async () => {
             try {
                 await message.channel.delete();
@@ -885,7 +882,6 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            // البحث عن رول البرايفت لتعطيل رؤيته عند إنشاء التكت يدوياً عبر الزر أيضاً
             let privateRoleObj = guild.roles.cache.get(CONFIG.privateRole);
             if (!privateRoleObj) {
                 privateRoleObj = guild.roles.cache.find(r => r.name === "برايفت");
@@ -1087,7 +1083,7 @@ client.on('interactionCreate', async (interaction) => {
                 ]
             });
 
-            await wefChannel.send(`أرسل صورك ودليلك لإنشاء الروم ${user}`);
+            const sentIntro = await wefChannel.send(`أرسل صورك ودليلك لإنشاء الروم <@&${CONFIG.adminControlRole}> <@${user.id}>`);
             await interaction.reply({ content: `تم إنشاء روم الطلب الخاص بك: ${wefChannel}`, ephemeral: true });
 
             setTimeout(async () => {
@@ -1136,7 +1132,7 @@ client.on('interactionCreate', async (interaction) => {
                 ]
             });
 
-            await delChannel.send(`أرسل صورك ودليلك لحذف الروم ${user}`);
+            await delChannel.send(`أرسل صورك ودليلك لحذف الروم <@&${CONFIG.adminControlRole}> <@${user.id}>`);
             await interaction.reply({ content: `تم إنشاء روم طلب الحذف: ${delChannel}`, ephemeral: true });
 
             setTimeout(async () => {
@@ -1185,7 +1181,7 @@ client.on('interactionCreate', async (interaction) => {
                 ]
             });
 
-            await makhfiChannel.send(`ارسل دليلك من صور وبينرسل طلبك للادارة ${user}`);
+            await makhfiChannel.send(`ارسل دليلك من صور وبينرسل طلبك للادارة <@&${CONFIG.adminControlRole}> <@${user.id}>`);
             await interaction.reply({ content: `تم انشاء الروم: ${makhfiChannel}`, ephemeral: true });
 
             setTimeout(async () => {
@@ -1248,26 +1244,40 @@ client.on('interactionCreate', async (interaction) => {
             }
 
             try {
+                let privateRoleObj = guild.roles.cache.get(CONFIG.privateRole);
+                if (!privateRoleObj) {
+                    privateRoleObj = guild.roles.cache.find(r => r.name === "برايفت");
+                }
+
                 const roomName = contentBody.slice(0, 95) || `room-${targetUserId}`;
+
+                const roomOverwrites = [
+                    {
+                        id: guild.id,
+                        deny: [PermissionFlagsBits.ViewChannel]
+                    },
+                    {
+                        id: CONFIG.adminControlRole,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
+                    },
+                    {
+                        id: targetUserId,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
+                    }
+                ];
+
+                if (privateRoleObj) {
+                    roomOverwrites.push({
+                        id: privateRoleObj.id,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    });
+                }
 
                 const newSecretRoom = await guild.channels.create({
                     name: roomName,
                     type: 0,
                     parent: chosenCategory,
-                    permissionOverwrites: [
-                        {
-                            id: guild.id,
-                            deny: [PermissionFlagsBits.ViewChannel]
-                        },
-                        {
-                            id: CONFIG.adminControlRole,
-                            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
-                        },
-                        {
-                            id: targetUserId,
-                            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
-                        }
-                    ]
+                    permissionOverwrites: roomOverwrites
                 });
 
                 if (filesToSend.length > 0) {
@@ -1339,7 +1349,7 @@ client.on('interactionCreate', async (interaction) => {
         const parts = interaction.customId.split('_');
         const action = parts[0];
         const targetUserId = parts[2];
-        const originalChannelId = parts[3];
+        const originalChannelId = parts.length > 3 ? parts[3] : '';
 
         const targetUser = await interaction.guild.members.fetch(targetUserId).catch(() => null);
 
@@ -1350,7 +1360,7 @@ client.on('interactionCreate', async (interaction) => {
                 }
             } catch(e) {}
             await interaction.update({ content: "تم رفض الطلب.", components: [] });
-            try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
+            try { if (originalChannelId) await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
             return;
         }
 
@@ -1370,8 +1380,8 @@ client.on('interactionCreate', async (interaction) => {
                 }
             }
 
-            await interaction.update({ content: "تمت الموافقة وإعطاء الرول بنجاح.", components: [] });
-            try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
+            await interaction.update({ content: "تمت الموافقة وإعطاء الروم بنجاح.", components: [] });
+            try { if (originalChannelId) await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
         }
         return;
     }
