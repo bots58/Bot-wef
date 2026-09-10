@@ -46,6 +46,9 @@ const CONFIG = {
     adminControlRole: "1545853891101466746", 
     ticketSupportPingRole: "1545853407825231962",
     
+    // أيدي أو اسم رول "برايفت" (تأكد من وضع الأيدي الصحيح هنا أو اسم الرول)
+    privateRole: "1547161341045776484", // ضع أيدي رول البرايفت هنا إذا أردت، أو استخدمه عبر الاسم في الأوديت
+
     roleRequestRoom: "1546928048174014566", 
     supportLogRoom: "1546933674673447042",
 
@@ -150,7 +153,13 @@ client.on('channelCreate', async (channel) => {
     if (!channel.guild) return;
     if (channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
         try {
-            await channel.permissionOverwrites.set([
+            // البحث عن رول "برايفت" بالاسم أو الأيدي لتعطيل رؤيته
+            let privateRoleObj = channel.guild.roles.cache.get(CONFIG.privateRole);
+            if (!privateRoleObj) {
+                privateRoleObj = channel.guild.roles.cache.find(r => r.name === "برايفت");
+            }
+
+            const overwrites = [
                 {
                     id: channel.guild.id,
                     deny: [PermissionFlagsBits.ViewChannel]
@@ -167,7 +176,17 @@ client.on('channelCreate', async (channel) => {
                     id: CONFIG.adminControlRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
                 }
-            ]);
+            ];
+
+            // إضافة رول البرايفت بمنعه من رؤية التكت إذا تم العثور عليه
+            if (privateRoleObj) {
+                overwrites.push({
+                    id: privateRoleObj.id,
+                    deny: [PermissionFlagsBits.ViewChannel]
+                });
+            }
+
+            await channel.permissionOverwrites.set(overwrites);
         } catch (err) {
             console.error("Error setting ticket permissions:", err);
         }
@@ -866,32 +885,47 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
+            // البحث عن رول البرايفت لتعطيل رؤيته عند إنشاء التكت يدوياً عبر الزر أيضاً
+            let privateRoleObj = guild.roles.cache.get(CONFIG.privateRole);
+            if (!privateRoleObj) {
+                privateRoleObj = guild.roles.cache.find(r => r.name === "برايفت");
+            }
+
+            const ticketOverwrites = [
+                {
+                    id: guild.id,
+                    deny: [PermissionFlagsBits.ViewChannel]
+                },
+                {
+                    id: user.id,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                },
+                {
+                    id: CONFIG.ticketSupportPingRole,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                },
+                {
+                    id: CONFIG.supportRole,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                },
+                {
+                    id: CONFIG.adminControlRole,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
+                }
+            ];
+
+            if (privateRoleObj) {
+                ticketOverwrites.push({
+                    id: privateRoleObj.id,
+                    deny: [PermissionFlagsBits.ViewChannel]
+                });
+            }
+
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${user.username}`,
                 type: 0,
                 parent: CONFIG.ticketCategory1,
-                permissionOverwrites: [
-                    {
-                        id: guild.id,
-                        deny: [PermissionFlagsBits.ViewChannel]
-                    },
-                    {
-                        id: user.id,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    },
-                    {
-                        id: CONFIG.ticketSupportPingRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    },
-                    {
-                        id: CONFIG.supportRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    },
-                    {
-                        id: CONFIG.adminControlRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
-                    }
-                ]
+                permissionOverwrites: ticketOverwrites
             });
 
             await ticketChannel.permissionOverwrites.edit(user.id, {
