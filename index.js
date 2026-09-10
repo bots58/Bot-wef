@@ -76,22 +76,6 @@ const summonCooldowns = new Map();
 
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
-    
-    // إزالة رول البرايفيت من صلاحيات الكاتجوريين حقين التذاكر تلقائياً عند تشغيل البوت
-    const ticketCategories = [CONFIG.ticketCategory1, CONFIG.ticketCategory2];
-    const roleIdToRemove = "1547161341045776484";
-
-    for (const catId of ticketCategories) {
-        const category = client.channels.cache.get(catId);
-        if (category) {
-            try {
-                await category.permissionOverwrites.delete(roleIdToRemove);
-                console.log(`تم إزالة الرول بنجاح من الكاتجوري: ${catId}`);
-            } catch (err) {
-                console.error(`خطأ أثناء إزالة الرول من الكاتجوري ${catId}:`, err);
-            }
-        }
-    }
 });
 
 client.on('channelCreate', async (channel) => {
@@ -109,7 +93,7 @@ client.on('channelCreate', async (channel) => {
                 },
                 {
                     id: CONFIG.supportRole,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    deny: [PermissionFlagsBits.ViewChannel]
                 },
                 {
                     id: CONFIG.adminControlRole,
@@ -637,7 +621,7 @@ client.on('interactionCreate', async (interaction) => {
                     },
                     {
                         id: CONFIG.supportRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                        deny: [PermissionFlagsBits.ViewChannel]
                     },
                     {
                         id: CONFIG.adminControlRole,
