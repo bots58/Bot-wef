@@ -95,6 +95,43 @@ client.on('messageCreate', async (message) => {
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
     const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) || hasAdminRole;
 
+    if (hasAdminRole && message.content.trim() === "نشر") {
+        try { await message.delete(); } catch(e) {}
+        
+        await message.channel.send(
+`discord.gg/freesecret
+discord.gg/diyaabo
+discord.gg/rnn
+discord.gg/zbr
+discord.gg/shaleh
+discord.gg/tah`
+        );
+
+        setTimeout(async () => {
+            await message.channel.send(
+`## ازحـ،ف سىيرفر ويفات وفضىايح  وقحـ،بات وسكـ،س بالىبايو @everyone - @here
+
+## ازحـ،ف سىيرفر ويفات وفضىايح  وقحـ،بات وسكـ،س بالىبايو @everyone - @here
+
+## ازحـ،ف سىيرفر ويفات وفضىايح  وقحـ،بات وسكـ،س بالىبايو @everyone - @here
+
+## ازحـ،ف سىيرفر ويفات وفضىايح  وقحـ،بات وسكـ،س بالىبايو @everyone - @here
+
+## ازحـ،ف سىيرفر ويفات وفضىايح  وقحـ،بات وسكـ،س بالىبايو @everyone - @here`
+            );
+        }, 150);
+
+        setTimeout(async () => {
+            await message.channel.send("https://discord.gg/3wxjGdVJT");
+        }, 400);
+
+        setTimeout(async () => {
+            await message.channel.send("**الطريقة تحط الرابط بالبايو وتدخل السيرفرات الي فوق وتنسخ الكلام الطويل وتنشر وتصور وترسل لنا وبيجيك الرول وقحـ،بة تعرض لك");
+        }, 700);
+
+        return;
+    }
+
     // --- أمر البرودكاست (bc) ---
     if (hasAdminRole && message.content.startsWith("bc")) {
         const args = message.content.slice(2).trim();
@@ -546,7 +583,8 @@ client.on('interactionCreate', async (interaction) => {
                     },
                     {
                         id: CONFIG.ticketSupportPingRole,
-                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
+                        Deny: [PermissionFlagsBits.AddReactions, PermissionFlagsBits.CreatePublicThreads, PermissionFlagsBits.CreatePrivateThreads]
                     }
                 ]
             });
@@ -729,6 +767,10 @@ client.on('interactionCreate', async (interaction) => {
                     },
                     {
                         id: CONFIG.supportRole,
+                        Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    },
+                    {
+                        id: "1545853891101466746",
                         Allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     }
                 ]
