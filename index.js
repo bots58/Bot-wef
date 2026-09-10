@@ -192,7 +192,6 @@ client.on('messageCreate', async (message) => {
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
     const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) || hasAdminRole;
 
-    // نظام منع إرسال الروابط إلا لمن يملك الرول المحدد
     const linkRegex = /(https?:\/\/[^\s]+|discord\.gg\/[^\s]+|discord\.com\/invite\/[^\s]+)/i;
     if (linkRegex.test(message.content)) {
         if (!message.member.roles.cache.has("1545853891101466746") && !hasAdminRole && !isOwner) {
@@ -237,13 +236,11 @@ client.on('messageCreate', async (message) => {
         try {
             await message.author.send(`ارسل الرابط لعشرة واستلم البرايفت وقحبة تعرض لك\n\n${customNasharLinks}`);
             
-            // إرسال رسالة في العام (الروم) تنص على أنه تم إرسال الرابط بالخاص، ثم حذفها بعد 5 ثوانٍ
             const successNotice = await message.channel.send({ content: `${message.author} تم إرسال الرابط لك بالخاص.` });
             setTimeout(async () => {
                 try { await successNotice.delete(); } catch(e) {}
             }, 5000);
 
-            // إرسال رسالة وهمية/مؤقتة (أو صامتة/زرقاء مخفية) للعام ثم حذفها سريعاً لضمان تنفيذ المطلوب
             const publicNotice = await message.channel.send({ content: `تم ارسال الرابط لك بالخاص` });
             setTimeout(async () => {
                 try { await publicNotice.delete(); } catch(e) {}
@@ -400,7 +397,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    if (message.channel.name.startsWith("ticket-") && hasTicketSupportRole) {
+    if (message.channel.name.startsWith("ticket-") && (hasTicketSupportRole || message.member.roles.cache.has(CONFIG.supportRole))) {
         const msgContent = message.content.trim();
         const closeKeywords = ["اغلاق", "إغلاق", "آغلاق", "أغلاق"];
         if (closeKeywords.includes(msgContent)) {
@@ -852,14 +849,19 @@ client.on('interactionCreate', async (interaction) => {
         const guild = interaction.guild;
         const user = interaction.user;
 
-        const existingTicket = guild.channels.cache.find(c => 
-            (c.name.startsWith('ticket-') || c.parentId === CONFIG.ticketCategory1 || c.parentId === CONFIG.ticketCategory2) && 
-            c.permissionOverwrites && 
-            c.permissionOverwrites.cache.has(user.id)
-        );
+        await guild.channels.fetch();
+
+        const existingTicket = guild.channels.cache.find(c => {
+            const isTicketCategory = c.parentId === CONFIG.ticketCategory1 || c.parentId === CONFIG.ticketCategory2 || c.name.startsWith('ticket-');
+            if (!isTicketCategory) return false;
+
+            const hasUserOverwrite = c.permissionOverwrites && c.permissionOverwrites.cache.has(user.id);
+            const inChannelName = c.name.includes(user.username.toLowerCase()) || c.name.includes(user.id);
+            return hasUserOverwrite || inChannelName;
+        });
 
         if (existingTicket) {
-            await interaction.reply({ content: "لديك تيكت من قبل ولا يمكنك فتح تيكت جديد حتى يتم إغلاق تيكتك القديمة.", ephemeral: true });
+            await interaction.reply({ content: `لديك تكت من قبل (${existingTicket}) ولا يمكنك فتح تكت جديد حتى يتم إغلاق تكتك القديمة.`, ephemeral: true });
             return;
         }
 
@@ -1301,7 +1303,7 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.customId.startsWith('approve_makhfi_') || interaction.customId.startsWith('deny_makhfi_')) {
         const parts = interaction.customId.split('_');
-        const action = parts[0]; // تم تعديلها لتصبح [0] لتجنب أي أخطاء برمجية
+        const action = parts[0];
         const targetUserId = parts[2];
         const originalChannelId = parts[3];
 
