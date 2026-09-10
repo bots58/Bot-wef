@@ -102,7 +102,7 @@ client.on('channelCreate', async (channel) => {
                 },
                 {
                     id: CONFIG.supportRole,
-                    deny: [PermissionFlagsBits.ViewChannel]
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
                     id: CONFIG.adminControlRole,
@@ -651,7 +651,7 @@ client.on('interactionCreate', async (interaction) => {
                     },
                     {
                         id: CONFIG.supportRole,
-                        deny: [PermissionFlagsBits.ViewChannel]
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     },
                     {
                         id: CONFIG.adminControlRole,
@@ -979,7 +979,7 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
 
-        if (action === 'approve') {
+        if (action === 'append' || action === 'approve') {
             const requestMsg = interaction.message;
             const mentionedChannel = requestMsg.mentions.channels.first();
 
