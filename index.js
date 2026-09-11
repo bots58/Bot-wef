@@ -111,7 +111,7 @@ client.once('ready', async () => {
 
             const sortedUsers = Array.from(userStats.entries())
                 .sort((a, b) => b[1].total - a[1].total)
-                .slice(0, 100); // زيادة السعة لتشمل حتى 100 روم وأكثر بدون مشاكل أو تعليق
+                .slice(0, 100);
 
             let descText = "";
             if (sortedUsers.length === 0) {
@@ -178,7 +178,7 @@ client.on('channelCreate', async (channel) => {
             if (privateRoleObj) {
                 overwrites.push({
                     id: privateRoleObj.id,
-                    deny: [PermissionFlagsBits.ViewChannel] // منع رول البرايفت من رؤية تكتات ويف بشكل كامل
+                    deny: [PermissionFlagsBits.ViewChannel]
                 });
             }
 
@@ -1063,24 +1063,38 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
+            let privateRoleObj = guild.roles.cache.get(CONFIG.privateRole);
+            if (!privateRoleObj) {
+                privateRoleObj = guild.roles.cache.find(r => r.name === "برايفت");
+            }
+
+            const wefOverwrites = [
+                {
+                    id: guild.id,
+                    deny: [PermissionFlagsBits.ViewChannel]
+                },
+                {
+                    id: user.id,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                },
+                {
+                    id: CONFIG.supportRole,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                }
+            ];
+
+            if (privateRoleObj) {
+                wefOverwrites.push({
+                    id: privateRoleObj.id,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                });
+            }
+
             const wefChannel = await guild.channels.create({
                 name: `wef-${user.username}`,
                 type: 0,
                 parent: CONFIG.secretRoomVoiceLog,
-                permissionOverwrites: [
-                    {
-                        id: guild.id,
-                        deny: [PermissionFlagsBits.ViewChannel]
-                    },
-                    {
-                        id: user.id,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    },
-                    {
-                        id: CONFIG.supportRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    }
-                ]
+                permissionOverwrites: wefOverwrites
             });
 
             const sentIntro = await wefChannel.send(`أرسل صورك ودليلك لإنشاء الروم <@&${CONFIG.adminControlRole}> <@${user.id}>`);
@@ -1112,24 +1126,38 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
+            let privateRoleObj = guild.roles.cache.get(CONFIG.privateRole);
+            if (!privateRoleObj) {
+                privateRoleObj = guild.roles.cache.find(r => r.name === "برايفت");
+            }
+
+            const delOverwrites = [
+                {
+                    id: guild.id,
+                    deny: [PermissionFlagsBits.ViewChannel]
+                },
+                {
+                    id: user.id,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                },
+                {
+                    id: CONFIG.adminControlRole,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                }
+            ];
+
+            if (privateRoleObj) {
+                delOverwrites.push({
+                    id: privateRoleObj.id,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                });
+            }
+
             const delChannel = await guild.channels.create({
                 name: `delete-room-${user.username}`,
                 type: 0,
                 parent: CONFIG.deleteRoomVoiceLog,
-                permissionOverwrites: [
-                    {
-                        id: guild.id,
-                        deny: [PermissionFlagsBits.ViewChannel]
-                    },
-                    {
-                        id: user.id,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    },
-                    {
-                        id: CONFIG.adminControlRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    }
-                ]
+                permissionOverwrites: delOverwrites
             });
 
             await delChannel.send(`أرسل صورك ودليلك لحذف الروم <@&${CONFIG.adminControlRole}> <@${user.id}>`);
@@ -1161,24 +1189,38 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
+            let privateRoleObj = guild.roles.cache.get(CONFIG.privateRole);
+            if (!privateRoleObj) {
+                privateRoleObj = guild.roles.cache.find(r => r.name === "برايفت");
+            }
+
+            const makhfiOverwrites = [
+                {
+                    id: guild.id,
+                    deny: [PermissionFlagsBits.ViewChannel]
+                },
+                {
+                    id: user.id,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                },
+                {
+                    id: CONFIG.adminControlRole,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                }
+            ];
+
+            if (privateRoleObj) {
+                makhfiOverwrites.push({
+                    id: privateRoleObj.id,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                });
+            }
+
             const makhfiChannel = await guild.channels.create({
                 name: `رول-مخفي-${user.username}`,
                 type: 0,
                 parent: "1547691348168155297",
-                permissionOverwrites: [
-                    {
-                        id: guild.id,
-                        deny: [PermissionFlagsBits.ViewChannel]
-                    },
-                    {
-                        id: user.id,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    },
-                    {
-                        id: CONFIG.adminControlRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    }
-                ]
+                permissionOverwrites: makhfiOverwrites
             });
 
             await makhfiChannel.send(`ارسل دليلك من صور وبينرسل طلبك للادارة <@&${CONFIG.adminControlRole}> <@${user.id}>`);
@@ -1289,7 +1331,7 @@ client.on('interactionCreate', async (interaction) => {
                 if (targetUser) {
                     await targetUser.send("تم قبول طلب رومك وإنشاء الروم").catch(() => {});
                     const stats = checkAndResetDaily(targetUserId);
-                    stats.total += 1; // زيادة تراكمية صحيحة تحسب كل روم ولا تعود للصفر أو تختفي مع تكرارها
+                    stats.total += 1;
                     stats.daily += 1;
                 }
 
@@ -1335,7 +1377,7 @@ client.on('interactionCreate', async (interaction) => {
             if (targetUser) {
                 await targetUser.send("تم قبول طلبك لحذف الروم وتم الحذف").catch(() => {});
                 const stats = checkAndResetDaily(targetUserId);
-                stats.total += 1; // زيادة تراكمية مستمرة تحسب كل عملية حذف روم مقبولة
+                stats.total += 1;
                 stats.daily += 1;
             }
 
@@ -1373,7 +1415,7 @@ client.on('interactionCreate', async (interaction) => {
                     await targetUser.roles.add(role);
                     await targetUser.send("تم قبول طلبك وجاك رول البرايفت").catch(() => {});
                     const stats = checkAndResetDaily(targetUserId);
-                    stats.total += 1; // زيادة النقاط عند قبول رول البرايفت أيضاً بشكل تراكمي دائم
+                    stats.total += 1;
                     stats.daily += 1;
                 } catch (err) {
                     console.error(err);
