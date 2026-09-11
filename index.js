@@ -43,10 +43,10 @@ const CONFIG = {
     ticketCategory2: "1545853004673196172", 
     
     supportRole: "1547161341045776484", 
-    adminControlRole: "1545853891101466746", 
+    adminControlRole: "1545853891101466746", // رول the rint Fire (الأونرية)
     ticketSupportPingRole: "1545853407825231962",
     
-    privateRole: "1547232423522082816", 
+    privateRole: "1547232423522082816", // رول البرايفت (مفصول تماماً عن رومات الويف والطلبات والحذف)
 
     roleRequestRoom: "1546928048174014566", 
     supportLogRoom: "1546933674673447042",
@@ -150,38 +150,31 @@ client.once('ready', async () => {
 client.on('channelCreate', async (channel) => {
     if (!channel.guild) return;
     
-    // تأمين الكاتجوري الخاص بالويف والطلبات لمنع رول برايفت وباقي الأعضاء
+    // تأمين الكاتجوري للويف والتكتات بالصلاحيات الصحيحة المطلوبة
     if (channel.parentId === CONFIG.secretRoomVoiceLog || channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
         try {
-            let privateRoleObj = channel.guild.roles.cache.get(CONFIG.privateRole);
-            if (!privateRoleObj) {
-                privateRoleObj = channel.guild.roles.cache.find(r => r.name === "برايفت");
-            }
-
             const overwrites = [
                 {
                     id: channel.guild.id,
                     deny: [PermissionFlagsBits.ViewChannel]
                 },
                 {
-                    id: CONFIG.ticketSupportPingRole,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                },
-                {
-                    id: CONFIG.supportRole,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                },
-                {
-                    id: CONFIG.adminControlRole,
+                    id: CONFIG.adminControlRole, // the rint Fire (الأونرية)
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
                 }
             ];
 
-            if (privateRoleObj) {
-                overwrites.push({
-                    id: privateRoleObj.id,
-                    deny: [PermissionFlagsBits.ViewChannel]
-                });
+            if (channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
+                overwrites.push(
+                    {
+                        id: CONFIG.ticketSupportPingRole,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    },
+                    {
+                        id: CONFIG.supportRole,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    }
+                );
             }
 
             await channel.permissionOverwrites.set(overwrites);
@@ -211,7 +204,7 @@ client.on('messageCreate', async (message) => {
 
     const linkRegex = /(https?:\/\/[^\s]+|discord\.gg\/[^\s]+|discord\.com\/invite\/[^\s]+)/i;
     if (linkRegex.test(message.content)) {
-        if (!message.member.roles.cache.has("1545853891101466746") && !hasAdminRole && !isOwner) {
+        if (!message.member.roles.cache.has(CONFIG.adminControlRole) && !hasAdminRole && !isOwner) {
             try {
                 await message.delete();
                 const warningMsg = await message.channel.send({ content: `${message.author} ممنوع إرسال الروابط هنا!` });
@@ -274,7 +267,7 @@ client.on('messageCreate', async (message) => {
 
     const msgContentTrimmed = message.content.trim();
     if (msgContentTrimmed === "اغلاق" || msgContentTrimmed === "إغلاق") {
-        if (message.member.roles.cache.has("1545853891101466746") || hasAdminRole) {
+        if (message.member.roles.cache.has(CONFIG.adminControlRole) || hasAdminRole) {
             try { await message.delete(); } catch(e) {}
             setTimeout(async () => {
                 try {
@@ -378,9 +371,9 @@ client.on('messageCreate', async (message) => {
     }
 
     if ((message.content.startsWith("رسالة") || message.content.startsWith("رساله"))) {
-        if (!message.member.roles.cache.has("1545853891101466746") && !hasAdminRole) {
+        if (!message.member.roles.cache.has(CONFIG.adminControlRole) && !hasAdminRole) {
             try { await message.delete(); } catch(e) {}
-            const errNotice = await message.channel.send({ content: `${message.author} هذا الأمر مخصص فقط لمن يملك الرول المعتمد.` });
+            const errNotice = await message.channel.send({ content: `${message.author} هذا الأمر مخصص فقط لمن يملك رول الأونرية.` });
             setTimeout(async () => {
                 try { await errNotice.delete(); } catch(e) {}
             }, 5000);
@@ -414,7 +407,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    if (message.channel.name.startsWith("ticket-") && (hasTicketSupportRole || message.member.roles.cache.has(CONFIG.supportRole))) {
+    if (message.channel.name.startsWith("ticket-") && (hasTicketSupportRole || message.member.roles.cache.has(CONFIG.supportRole) || message.member.roles.cache.has(CONFIG.adminControlRole))) {
         const msgContent = message.content.trim();
         const closeKeywords = ["اغلاق", "إغلاق", "آغلاق", "أغلاق"];
         if (closeKeywords.includes(msgContent)) {
@@ -884,11 +877,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            let privateRoleObj = guild.roles.cache.get(CONFIG.privateRole);
-            if (!privateRoleObj) {
-                privateRoleObj = guild.roles.cache.find(r => r.name === "برايفت");
-            }
-
+            // التكتات: يراها الأونرية، السبورت، وصاحب التكت فقط
             const ticketOverwrites = [
                 {
                     id: guild.id,
@@ -912,25 +901,12 @@ client.on('interactionCreate', async (interaction) => {
                 }
             ];
 
-            if (privateRoleObj) {
-                ticketOverwrites.push({
-                    id: privateRoleObj.id,
-                    deny: [PermissionFlagsBits.ViewChannel]
-                });
-            }
-
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${user.username}`,
                 type: 0,
                 parent: CONFIG.ticketCategory1,
                 permissionOverwrites: ticketOverwrites
             });
-
-            await ticketChannel.permissionOverwrites.edit(user.id, {
-                ViewChannel: true,
-                SendMessages: true,
-                ReadMessageHistory: true
-            }).catch(() => {});
 
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
@@ -959,7 +935,7 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.customId.startsWith('summon_ticket_')) {
         const member = interaction.member;
 
-        if (!member.roles.cache.has(CONFIG.ticketSupportPingRole) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
+        if (!member.roles.cache.has(CONFIG.ticketSupportPingRole) && !member.roles.cache.has(CONFIG.adminControlRole) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
             await interaction.reply({ content: "ما معك رول الادارة/السبورت المخول بذلك.", ephemeral: true });
             return;
         }
@@ -1065,12 +1041,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            let privateRoleObj = guild.roles.cache.get(CONFIG.privateRole);
-            if (!privateRoleObj) {
-                privateRoleObj = guild.roles.cache.find(r => r.name === "برايفت");
-            }
-
-            // إعدادات صارمة تمنع @everyone ورول "برايفت" تماماً وتسمح لصاحب الروم والسبورت فقط
+            // رومات الويف (طلب انشاء روم): يراها صاحب الروم ورول الأونرية فقط (بدون رول البرايفت وبدون سبورت)
             const wefOverwrites = [
                 {
                     id: guild.id,
@@ -1087,21 +1058,10 @@ client.on('interactionCreate', async (interaction) => {
                     ]
                 },
                 {
-                    id: CONFIG.supportRole,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                },
-                {
-                    id: CONFIG.adminControlRole,
+                    id: CONFIG.adminControlRole, // the rint Fire (الأونرية)
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 }
             ];
-
-            if (privateRoleObj) {
-                wefOverwrites.push({
-                    id: privateRoleObj.id,
-                    deny: [PermissionFlagsBits.ViewChannel]
-                });
-            }
 
             const wefChannel = await guild.channels.create({
                 name: `wef-${user.username}`,
@@ -1139,11 +1099,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            let privateRoleObj = guild.roles.cache.get(CONFIG.privateRole);
-            if (!privateRoleObj) {
-                privateRoleObj = guild.roles.cache.find(r => r.name === "برايفت");
-            }
-
+            // رومات حذف الروم (delete): يراها صاحب الروم ورول الأونرية فقط (بدون رول البرايفت)
             const delOverwrites = [
                 {
                     id: guild.id,
@@ -1160,17 +1116,10 @@ client.on('interactionCreate', async (interaction) => {
                     ]
                 },
                 {
-                    id: CONFIG.adminControlRole,
+                    id: CONFIG.adminControlRole, // the rint Fire (الأونرية)
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 }
             ];
-
-            if (privateRoleObj) {
-                delOverwrites.push({
-                    id: privateRoleObj.id,
-                    deny: [PermissionFlagsBits.ViewChannel]
-                });
-            }
 
             const delChannel = await guild.channels.create({
                 name: `delete-room-${user.username}`,
@@ -1208,11 +1157,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            let privateRoleObj = guild.roles.cache.get(CONFIG.privateRole);
-            if (!privateRoleObj) {
-                privateRoleObj = guild.roles.cache.find(r => r.name === "برايفت");
-            }
-
+            // طلب الرول المخفي: يراها صاحب الروم ورول الأونرية فقط (بدون رول البرايفت)
             const makhfiOverwrites = [
                 {
                     id: guild.id,
@@ -1229,17 +1174,10 @@ client.on('interactionCreate', async (interaction) => {
                     ]
                 },
                 {
-                    id: CONFIG.adminControlRole,
+                    id: CONFIG.adminControlRole, // the rint Fire (الأونرية)
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 }
             ];
-
-            if (privateRoleObj) {
-                makhfiOverwrites.push({
-                    id: privateRoleObj.id,
-                    deny: [PermissionFlagsBits.ViewChannel]
-                });
-            }
 
             const makhfiChannel = await guild.channels.create({
                 name: `رول-مخفي-${user.username}`,
@@ -1311,21 +1249,16 @@ client.on('interactionCreate', async (interaction) => {
             }
 
             try {
-                let privateRoleObj = guild.roles.cache.get(CONFIG.privateRole);
-                if (!privateRoleObj) {
-                    privateRoleObj = guild.roles.cache.find(r => r.name === "برايفت");
-                }
-
                 const roomName = contentBody.slice(0, 95) || `room-${targetUserId}`;
 
-                // التأكد من حظر رول "برايفت" وباقي الأعضاء عند إنشاء الروم السري النهائي
+                // الرومات السرية النهائية: يراها الأونرية وصاحب الروم فقط (بدون رول البرايفت)
                 const roomOverwrites = [
                     {
                         id: guild.id,
                         deny: [PermissionFlagsBits.ViewChannel]
                     },
                     {
-                        id: CONFIG.adminControlRole,
+                        id: CONFIG.adminControlRole, // the rint Fire (الأونرية)
                         allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
                     },
                     {
@@ -1333,13 +1266,6 @@ client.on('interactionCreate', async (interaction) => {
                         allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
                     }
                 ];
-
-                if (privateRoleObj) {
-                    roomOverwrites.push({
-                        id: privateRoleObj.id,
-                        deny: [PermissionFlagsBits.ViewChannel]
-                    });
-                }
 
                 const newSecretRoom = await guild.channels.create({
                     name: roomName,
