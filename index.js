@@ -149,7 +149,9 @@ client.once('ready', async () => {
 
 client.on('channelCreate', async (channel) => {
     if (!channel.guild) return;
-    if (channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
+    
+    // تأمين الكاتجوري الخاص بالويف والطلبات لمنع رول برايفت وباقي الأعضاء
+    if (channel.parentId === CONFIG.secretRoomVoiceLog || channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
         try {
             let privateRoleObj = channel.guild.roles.cache.get(CONFIG.privateRole);
             if (!privateRoleObj) {
@@ -184,7 +186,7 @@ client.on('channelCreate', async (channel) => {
 
             await channel.permissionOverwrites.set(overwrites);
         } catch (err) {
-            console.error("Error setting ticket permissions:", err);
+            console.error("Error setting channel permissions:", err);
         }
     }
 });
@@ -1068,6 +1070,7 @@ client.on('interactionCreate', async (interaction) => {
                 privateRoleObj = guild.roles.cache.find(r => r.name === "برايفت");
             }
 
+            // إعدادات صارمة تمنع @everyone ورول "برايفت" تماماً وتسمح لصاحب الروم والسبورت فقط
             const wefOverwrites = [
                 {
                     id: guild.id,
@@ -1086,6 +1089,10 @@ client.on('interactionCreate', async (interaction) => {
                 {
                     id: CONFIG.supportRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                },
+                {
+                    id: CONFIG.adminControlRole,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 }
             ];
 
@@ -1103,7 +1110,7 @@ client.on('interactionCreate', async (interaction) => {
                 permissionOverwrites: wefOverwrites
             });
 
-            const sentIntro = await wefChannel.send(`أرسل صورك ودليلك لإنشاء الروم <@&${CONFIG.adminControlRole}> <@${user.id}>`);
+            await wefChannel.send(`أرسل صورك ودليلك لإنشاء الروم <@&${CONFIG.adminControlRole}> <@${user.id}>`);
             await interaction.reply({ content: `تم إنشاء روم الطلب الخاص بك: ${wefChannel}`, ephemeral: true });
 
             setTimeout(async () => {
@@ -1311,6 +1318,7 @@ client.on('interactionCreate', async (interaction) => {
 
                 const roomName = contentBody.slice(0, 95) || `room-${targetUserId}`;
 
+                // التأكد من حظر رول "برايفت" وباقي الأعضاء عند إنشاء الروم السري النهائي
                 const roomOverwrites = [
                     {
                         id: guild.id,
