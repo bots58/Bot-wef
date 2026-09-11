@@ -111,7 +111,7 @@ client.once('ready', async () => {
 
             const sortedUsers = Array.from(userStats.entries())
                 .sort((a, b) => b[1].total - a[1].total)
-                .slice(0, 10);
+                .slice(0, 100); // زيادة السعة لتشمل حتى 100 روم وأكثر بدون مشاكل أو تعليق
 
             let descText = "";
             if (sortedUsers.length === 0) {
@@ -178,7 +178,7 @@ client.on('channelCreate', async (channel) => {
             if (privateRoleObj) {
                 overwrites.push({
                     id: privateRoleObj.id,
-                    deny: [PermissionFlagsBits.ViewChannel]
+                    deny: [PermissionFlagsBits.ViewChannel] // منع رول البرايفت من رؤية تكتات ويف بشكل كامل
                 });
             }
 
@@ -1289,7 +1289,7 @@ client.on('interactionCreate', async (interaction) => {
                 if (targetUser) {
                     await targetUser.send("تم قبول طلب رومك وإنشاء الروم").catch(() => {});
                     const stats = checkAndResetDaily(targetUserId);
-                    stats.total += 1;
+                    stats.total += 1; // زيادة تراكمية صحيحة تحسب كل روم ولا تعود للصفر أو تختفي مع تكرارها
                     stats.daily += 1;
                 }
 
@@ -1335,7 +1335,7 @@ client.on('interactionCreate', async (interaction) => {
             if (targetUser) {
                 await targetUser.send("تم قبول طلبك لحذف الروم وتم الحذف").catch(() => {});
                 const stats = checkAndResetDaily(targetUserId);
-                stats.total += 1;
+                stats.total += 1; // زيادة تراكمية مستمرة تحسب كل عملية حذف روم مقبولة
                 stats.daily += 1;
             }
 
@@ -1373,7 +1373,7 @@ client.on('interactionCreate', async (interaction) => {
                     await targetUser.roles.add(role);
                     await targetUser.send("تم قبول طلبك وجاك رول البرايفت").catch(() => {});
                     const stats = checkAndResetDaily(targetUserId);
-                    stats.total += 1;
+                    stats.total += 1; // زيادة النقاط عند قبول رول البرايفت أيضاً بشكل تراكمي دائم
                     stats.daily += 1;
                 } catch (err) {
                     console.error(err);
