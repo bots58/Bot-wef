@@ -1075,7 +1075,13 @@ client.on('interactionCreate', async (interaction) => {
                 },
                 {
                     id: user.id,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    allow: [
+                        PermissionFlagsBits.ViewChannel,
+                        PermissionFlagsBits.SendMessages,
+                        PermissionFlagsBits.ReadMessageHistory,
+                        PermissionFlagsBits.ManageChannels,
+                        PermissionFlagsBits.ManageMessages
+                    ]
                 },
                 {
                     id: CONFIG.supportRole,
@@ -1138,7 +1144,13 @@ client.on('interactionCreate', async (interaction) => {
                 },
                 {
                     id: user.id,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    allow: [
+                        PermissionFlagsBits.ViewChannel,
+                        PermissionFlagsBits.SendMessages,
+                        PermissionFlagsBits.ReadMessageHistory,
+                        PermissionFlagsBits.ManageChannels,
+                        PermissionFlagsBits.ManageMessages
+                    ]
                 },
                 {
                     id: CONFIG.adminControlRole,
@@ -1201,7 +1213,13 @@ client.on('interactionCreate', async (interaction) => {
                 },
                 {
                     id: user.id,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    allow: [
+                        PermissionFlagsBits.ViewChannel,
+                        PermissionFlagsBits.SendMessages,
+                        PermissionFlagsBits.ReadMessageHistory,
+                        PermissionFlagsBits.ManageChannels,
+                        PermissionFlagsBits.ManageMessages
+                    ]
                 },
                 {
                     id: CONFIG.adminControlRole,
