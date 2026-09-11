@@ -46,7 +46,7 @@ const CONFIG = {
     adminControlRole: "1545853891101466746", 
     ticketSupportPingRole: "1545853407825231962",
     
-    privateRole: "1547161341045776484", 
+    privateRole: "1547232423522082816", 
 
     roleRequestRoom: "1546928048174014566", 
     supportLogRoom: "1546933674673447042",
@@ -1086,7 +1086,7 @@ client.on('interactionCreate', async (interaction) => {
             if (privateRoleObj) {
                 wefOverwrites.push({
                     id: privateRoleObj.id,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    deny: [PermissionFlagsBits.ViewChannel]
                 });
             }
 
@@ -1149,7 +1149,7 @@ client.on('interactionCreate', async (interaction) => {
             if (privateRoleObj) {
                 delOverwrites.push({
                     id: privateRoleObj.id,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    deny: [PermissionFlagsBits.ViewChannel]
                 });
             }
 
@@ -1212,7 +1212,7 @@ client.on('interactionCreate', async (interaction) => {
             if (privateRoleObj) {
                 makhfiOverwrites.push({
                     id: privateRoleObj.id,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    deny: [PermissionFlagsBits.ViewChannel]
                 });
             }
 
@@ -1311,7 +1311,7 @@ client.on('interactionCreate', async (interaction) => {
                 if (privateRoleObj) {
                     roomOverwrites.push({
                         id: privateRoleObj.id,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                        deny: [PermissionFlagsBits.ViewChannel]
                     });
                 }
 
