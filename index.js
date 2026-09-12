@@ -883,7 +883,6 @@ client.on('interactionCreate', async (interaction) => {
 
         await guild.channels.fetch();
 
-        // تم إصلاح البحث عن التكتات القديمة بطريقة آمنة وصحيحة تمنع الخطأ المتكرر
         const existingTicket = guild.channels.cache.find(c => {
             const isTicketCategory = c.parentId === CONFIG.ticketCategory1 || c.parentId === CONFIG.ticketCategory2 || c.name.startsWith('ticket-');
             if (!isTicketCategory) return false;
@@ -896,8 +895,20 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
 
+        // اختيار الكاتيجوري الذكي: يبحث عن كاتيجوري لم يصل 50 قناة، وإذا وصلا معاً يتم اختيار الأول أو الثاني باستمرار دون توقف أو إظهار خطأ
+        const ticketCategories = [CONFIG.ticketCategory1, CONFIG.ticketCategory2];
+        let targetCategory = ticketCategories[0];
+
+        for (const catId of ticketCategories) {
+            const cat = guild.channels.cache.get(catId);
+            if (cat && cat.children.cache.size < 50) {
+                targetCategory = catId;
+                break;
+            }
+        }
+
         try {
-            // ضبط الصلاحيات المطلوبة: صاحب التكت، السبورت، و the rine فقط، مع منع البرايفت تماماً
+            // ضبط الصلاحيات المطلوبة بدقة: صاحب التكت، الدعم، و the rine فقط مع حظر البرايفت وبقية الأعضاء
             const ticketOverwrites = [
                 {
                     id: guild.id,
@@ -909,6 +920,10 @@ client.on('interactionCreate', async (interaction) => {
                 },
                 {
                     id: CONFIG.supportRole,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                },
+                {
+                    id: CONFIG.ticketSupportPingRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
@@ -924,7 +939,7 @@ client.on('interactionCreate', async (interaction) => {
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${user.username}`,
                 type: 0,
-                parent: CONFIG.ticketCategory1,
+                parent: targetCategory,
                 permissionOverwrites: ticketOverwrites
             });
 
