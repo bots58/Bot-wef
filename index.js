@@ -104,7 +104,6 @@ function checkAndResetDaily(userId) {
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 
-    // تنظيف كاتيغوري التكتات فور الإقلاع لضمان عدم تسرب رول البرايفت منها
     try {
         for (const catId of [CONFIG.ticketCategory1, CONFIG.ticketCategory2]) {
             const cat = await client.channels.fetch(catId).catch(() => null);
@@ -299,9 +298,11 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
+    // أمر إغلاق التكت لأي روم يبدأ بـ ticket- أو داخل كاتيغوري التكتات بواسطة السبورت أو الأونر
     const msgContentTrimmed = message.content.trim();
-    if (msgContentTrimmed === "اغلاق" || msgContentTrimmed === "إغلاق") {
-        if (message.member.roles.cache.has(CONFIG.adminControlRole) || hasAdminRole) {
+    const closeKeywords = ["اغلاق", "إغلاق", "آغلاق", "أغلاق"];
+    if (closeKeywords.includes(msgContentTrimmed)) {
+        if (message.channel.name.startsWith("ticket-") && (hasSupportRole || hasAdminRole || message.member.roles.cache.has(CONFIG.ticketSupportPingRole))) {
             try { await message.delete(); } catch(e) {}
             setTimeout(async () => {
                 try {
@@ -439,20 +440,6 @@ client.on('messageCreate', async (message) => {
             files: filesToSend
         });
         return;
-    }
-
-    if (message.channel.name.startsWith("ticket-") && (hasTicketSupportRole || message.member.roles.cache.has(CONFIG.supportRole) || message.member.roles.cache.has(CONFIG.adminControlRole))) {
-        const msgContent = message.content.trim();
-        const closeKeywords = ["اغلاق", "إغلاق", "آغلاق", "أغلاق"];
-        if (closeKeywords.includes(msgContent)) {
-            try { await message.delete(); } catch(e) {}
-            setTimeout(async () => {
-                try {
-                    await message.channel.delete();
-                } catch(e) {}
-            }, 500);
-            return;
-        }
     }
 
     if (message.content.trim() === "قفل" && hasAdminRole) {
@@ -896,13 +883,12 @@ client.on('interactionCreate', async (interaction) => {
 
         await guild.channels.fetch();
 
+        // تم إصلاح البحث عن التكتات القديمة بطريقة آمنة وصحيحة تمنع الخطأ المتكرر
         const existingTicket = guild.channels.cache.find(c => {
             const isTicketCategory = c.parentId === CONFIG.ticketCategory1 || c.parentId === CONFIG.ticketCategory2 || c.name.startsWith('ticket-');
             if (!isTicketCategory) return false;
-
             const hasUserOverwrite = c.permissionOverwrites && c.permissionOverwrites.cache.has(user.id);
-            const inChannelName = c.name.includes(user.username.toLowerCase()) || c.name.includes(user.id);
-            return hasUserOverwrite || inChannelName;
+            return hasUserOverwrite;
         });
 
         if (existingTicket) {
@@ -911,7 +897,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            // التعديل الحاسم والذكي: منع رول البرايفت تماماً من التكت وجعله مقتصر فقط على: صاحب التكت، السبورت، و the rint Fire
+            // ضبط الصلاحيات المطلوبة: صاحب التكت، السبورت، و the rine فقط، مع منع البرايفت تماماً
             const ticketOverwrites = [
                 {
                     id: guild.id,
@@ -923,10 +909,6 @@ client.on('interactionCreate', async (interaction) => {
                 },
                 {
                     id: CONFIG.supportRole,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                },
-                {
-                    id: CONFIG.ticketSupportPingRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
@@ -958,7 +940,7 @@ client.on('interactionCreate', async (interaction) => {
             );
 
             await ticketChannel.send({
-                content: `<@&${CONFIG.ticketSupportPingRole}> <@&${CONFIG.adminControlRole}>\n\n**اكتب مشكلتك قبل نجي**`,
+                content: `<@&${CONFIG.supportRole}> <@&${CONFIG.adminControlRole}>\n\n**اكتب مشكلتك قبل نجي**`,
                 components: [row]
             });
 
@@ -973,7 +955,7 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.customId.startsWith('summon_ticket_')) {
         const member = interaction.member;
 
-        if (!member.roles.cache.has(CONFIG.ticketSupportPingRole) && !member.roles.cache.has(CONFIG.supportRole) && !member.roles.cache.has(CONFIG.adminControlRole) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
+        if (!member.roles.cache.has(CONFIG.supportRole) && !member.roles.cache.has(CONFIG.adminControlRole) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
             await interaction.reply({ content: "ما معك رول الادارة/السبورت المخول بذلك.", ephemeral: true });
             return;
         }
@@ -1017,7 +999,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.customId === 'summon_admin') {
-        const sentMsg = await interaction.channel.send({ content: `<@&${CONFIG.ticketSupportPingRole}> <@&${CONFIG.adminControlRole}>` });
+        const sentMsg = await interaction.channel.send({ content: `<@&${CONFIG.supportRole}> <@&${CONFIG.adminControlRole}>` });
         setTimeout(async () => {
             try { await sentMsg.delete(); } catch(e) {}
         }, 3000);
@@ -1387,7 +1369,7 @@ client.on('interactionCreate', async (interaction) => {
                     await targetUser.send("تم رفض طلبك للرول البرايفت");
                 }
             } catch(e) {}
-            await interaction.update({ content: "تم رفض الطلب.", components: [] });
+            await interaction.update({ content: "تم الطلب.", components: [] });
             try { if (originalChannelId) await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
             return;
         }
