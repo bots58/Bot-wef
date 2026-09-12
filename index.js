@@ -46,7 +46,7 @@ const CONFIG = {
     adminControlRole: "1545853891101466746", // رول the rint Fire (الأونرية)
     ticketSupportPingRole: "1545853407825231962",
     
-    privateRole: "1547232423522082816", // رول البرايفت (مفصول تماماً عن رومات الويف والطلبات والحذف)
+    privateRole: "1547232423522082816", // تم فصله تماماً وإزالته من التكتات بناءً على طلبك
 
     roleRequestRoom: "1546928048174014566", 
     supportLogRoom: "1546933674673447042",
@@ -861,7 +861,6 @@ client.on('interactionCreate', async (interaction) => {
 
         await guild.channels.fetch();
 
-        // منع المستخدم من فتح أكثر من تكت واحد نهائياً (حتى لو خرج ودخل السيرفر، يتم التحقق عبر صلاحيات القنوات وسجل التكتات واسمها)
         const existingTicket = guild.channels.cache.find(c => {
             const isTicketCategory = c.parentId === CONFIG.ticketCategory1 || c.parentId === CONFIG.ticketCategory2 || c.name.startsWith('ticket-');
             if (!isTicketCategory) return false;
@@ -877,7 +876,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            // التعديل المطلوب: شيل رول البرايفت، وخلي بس: the rint Fire، و support، والشخص صاحب التكت (والمشرفين/الأونرية)
+            // التعديل الجذري: إزالة رول البرايفت كلياً، وجعل الصلاحيات فقط لصاحب التكت، رول support، ورول the rint Fire (adminControlRole)
             const ticketOverwrites = [
                 {
                     id: guild.id,
@@ -1333,7 +1332,7 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.customId.startsWith('approve_makhfi_') || interaction.customId.startsWith('deny_makhfi_')) {
         const parts = interaction.customId.split('_');
-        const action = parts.getElementById ? parts[0] : parts[0];
+        const action = parts[0];
         const targetUserId = parts[2];
         const originalChannelId = parts.length > 3 ? parts[3] : '';
 
