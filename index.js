@@ -46,7 +46,7 @@ const CONFIG = {
     adminControlRole: "1545853891101466746", // رول the rint Fire (الأونرية)
     ticketSupportPingRole: "1545853407825231962",
     
-    privateRole: "1547232423522082816", // تم استبعاده نهائياً من التكتات
+    privateRole: "1547232423522082816", // تم استبعاده وحظره نهائياً من التكتات والكتيغوري
 
     roleRequestRoom: "1546928048174014566", 
     supportLogRoom: "1546933674673447042",
@@ -104,6 +104,37 @@ function checkAndResetDaily(userId) {
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 
+    // تنظيف كاتيغوري التكتات فور الإقلاع لضمان عدم تسرب رول البرايفت منها
+    try {
+        for (const catId of [CONFIG.ticketCategory1, CONFIG.ticketCategory2]) {
+            const cat = await client.channels.fetch(catId).catch(() => null);
+            if (cat) {
+                await cat.permissionOverwrites.set([
+                    {
+                        id: cat.guild.id,
+                        deny: [PermissionFlagsBits.ViewChannel]
+                    },
+                    {
+                        id: CONFIG.adminControlRole,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
+                    },
+                    {
+                        id: CONFIG.supportRole,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    },
+                    {
+                        id: CONFIG.ticketSupportPingRole,
+                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                    },
+                    {
+                        id: CONFIG.privateRole,
+                        deny: [PermissionFlagsBits.ViewChannel]
+                    }
+                ]).catch(() => {});
+            }
+        }
+    } catch (e) {}
+
     setInterval(async () => {
         try {
             const channel = await client.channels.fetch(CONFIG.topChannelId).catch(() => null);
@@ -160,6 +191,10 @@ client.on('channelCreate', async (channel) => {
                 {
                     id: CONFIG.adminControlRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
+                },
+                {
+                    id: CONFIG.privateRole,
+                    deny: [PermissionFlagsBits.ViewChannel]
                 }
             ];
 
@@ -876,7 +911,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            // التعديل النهائي والصارم: استبعاد رول البرايفت تماماً، وجعل الأذونات حصرياً لصاحب التكت، السبورت، و the rint Fire (adminControlRole)
+            // التعديل الحاسم والذكي: منع رول البرايفت تماماً من التكت وجعله مقتصر فقط على: صاحب التكت، السبورت، و the rint Fire
             const ticketOverwrites = [
                 {
                     id: guild.id,
@@ -891,8 +926,16 @@ client.on('interactionCreate', async (interaction) => {
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
+                    id: CONFIG.ticketSupportPingRole,
+                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                },
+                {
                     id: CONFIG.adminControlRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
+                },
+                {
+                    id: CONFIG.privateRole,
+                    deny: [PermissionFlagsBits.ViewChannel]
                 }
             ];
 
