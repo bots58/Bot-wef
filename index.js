@@ -298,7 +298,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر إغلاق التكت لأي روم يبدأ بـ ticket- أو داخل كاتيغوري التكتات بواسطة السبورت أو الأونر
     const msgContentTrimmed = message.content.trim();
     const closeKeywords = ["اغلاق", "إغلاق", "آغلاق", "أغلاق"];
     if (closeKeywords.includes(msgContentTrimmed)) {
@@ -895,7 +894,6 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
 
-        // اختيار الكاتيجوري الذكي: يبحث عن كاتيجوري لم يصل 50 قناة، وإذا وصلا معاً يتم اختيار الأول أو الثاني باستمرار دون توقف أو إظهار خطأ
         const ticketCategories = [CONFIG.ticketCategory1, CONFIG.ticketCategory2];
         let targetCategory = ticketCategories[0];
 
@@ -908,7 +906,6 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            // ضبط الصلاحيات المطلوبة بدقة: صاحب التكت، الدعم، و the rine فقط مع حظر البرايفت وبقية الأعضاء
             const ticketOverwrites = [
                 {
                     id: guild.id,
@@ -1389,7 +1386,7 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
 
-        if (action === 'approve') {
+        if (action: action === 'approve') {
             const roleId = "1547161341045776484";
             const role = interaction.guild.roles.cache.get(roleId);
 
