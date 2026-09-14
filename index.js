@@ -46,7 +46,7 @@ const CONFIG = {
     adminControlRole: "1545853891101466746", // رول the rint Fire (الأونرية)
     ticketSupportPingRole: "1545853407825231962",
     
-    privateRole: "1547232423522082816", // تم استبعاده وحظره نهائياً من التكتات والكتيغوري
+    privateRole: "1547232423522082816", 
 
     roleRequestRoom: "1546928048174014566", 
     supportLogRoom: "1546933674673447042",
@@ -104,37 +104,6 @@ function checkAndResetDaily(userId) {
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 
-    // تنظيف كاتيغوري التكتات فور الإقلاع لضمان عدم تسرب رول البرايفت منها
-    try {
-        for (const catId of [CONFIG.ticketCategory1, CONFIG.ticketCategory2]) {
-            const cat = await client.channels.fetch(catId).catch(() => null);
-            if (cat) {
-                await cat.permissionOverwrites.set([
-                    {
-                        id: cat.guild.id,
-                        deny: [PermissionFlagsBits.ViewChannel]
-                    },
-                    {
-                        id: CONFIG.adminControlRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
-                    },
-                    {
-                        id: CONFIG.supportRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    },
-                    {
-                        id: CONFIG.ticketSupportPingRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    },
-                    {
-                        id: CONFIG.privateRole,
-                        deny: [PermissionFlagsBits.ViewChannel]
-                    }
-                ]).catch(() => {});
-            }
-        }
-    } catch (e) {}
-
     setInterval(async () => {
         try {
             const channel = await client.channels.fetch(CONFIG.topChannelId).catch(() => null);
@@ -176,46 +145,6 @@ client.once('ready', async () => {
             console.error("Error in top interval update:", err);
         }
     }, 30000);
-});
-
-client.on('channelCreate', async (channel) => {
-    if (!channel.guild) return;
-    
-    if (channel.parentId === CONFIG.secretRoomVoiceLog || channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
-        try {
-            const overwrites = [
-                {
-                    id: channel.guild.id,
-                    deny: [PermissionFlagsBits.ViewChannel]
-                },
-                {
-                    id: CONFIG.adminControlRole,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
-                },
-                {
-                    id: CONFIG.privateRole,
-                    deny: [PermissionFlagsBits.ViewChannel]
-                }
-            ];
-
-            if (channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
-                overwrites.push(
-                    {
-                        id: CONFIG.ticketSupportPingRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    },
-                    {
-                        id: CONFIG.supportRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    }
-                );
-            }
-
-            await channel.permissionOverwrites.set(overwrites);
-        } catch (err) {
-            console.error("Error setting channel permissions:", err);
-        }
-    }
 });
 
 client.on('guildMemberAdd', async (member) => {
@@ -911,7 +840,6 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            // التكتات مقتصرة حصرياً على: صاحب التكت، السبورت، و the rine (adminControlRole)، وحظر رول البرايفت
             const ticketOverwrites = [
                 {
                     id: guild.id,
@@ -939,10 +867,12 @@ client.on('interactionCreate', async (interaction) => {
                 }
             ];
 
+            const ticketCategory = guild.channels.cache.get(CONFIG.ticketCategory1);
+
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${user.username}`,
                 type: 0,
-                parent: CONFIG.ticketCategory1,
+                parent: ticketCategory ? ticketCategory.id : null,
                 permissionOverwrites: ticketOverwrites
             });
 
@@ -1286,7 +1216,6 @@ client.on('interactionCreate', async (interaction) => {
             try {
                 const roomName = contentBody.slice(0, 95) || `room-${targetUserId}`;
 
-                // الروم المنشأ (إنشاء روم) مقتصر فقط على: the rine وصاحب الروم فقط
                 const roomOverwrites = [
                     {
                         id: guild.id,
