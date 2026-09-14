@@ -104,6 +104,7 @@ function checkAndResetDaily(userId) {
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 
+    // تنظيف كاتيغوري التكتات فور الإقلاع لضمان عدم تسرب رول البرايفت منها
     try {
         for (const catId of [CONFIG.ticketCategory1, CONFIG.ticketCategory2]) {
             const cat = await client.channels.fetch(catId).catch(() => null);
@@ -299,9 +300,8 @@ client.on('messageCreate', async (message) => {
     }
 
     const msgContentTrimmed = message.content.trim();
-    const closeKeywords = ["اغلاق", "إغلاق", "آغلاق", "أغلاق"];
-    if (closeKeywords.includes(msgContentTrimmed)) {
-        if (message.channel.name.startsWith("ticket-") && (hasSupportRole || hasAdminRole || message.member.roles.cache.has(CONFIG.ticketSupportPingRole))) {
+    if (msgContentTrimmed === "اغلاق" || msgContentTrimmed === "إغلاق") {
+        if (message.member.roles.cache.has(CONFIG.adminControlRole) || hasAdminRole) {
             try { await message.delete(); } catch(e) {}
             setTimeout(async () => {
                 try {
@@ -439,6 +439,20 @@ client.on('messageCreate', async (message) => {
             files: filesToSend
         });
         return;
+    }
+
+    if (message.channel.name.startsWith("ticket-") && (hasTicketSupportRole || message.member.roles.cache.has(CONFIG.supportRole) || message.member.roles.cache.has(CONFIG.adminControlRole))) {
+        const msgContent = message.content.trim();
+        const closeKeywords = ["اغلاق", "إغلاق", "آغلاق", "أغلاق"];
+        if (closeKeywords.includes(msgContent)) {
+            try { await message.delete(); } catch(e) {}
+            setTimeout(async () => {
+                try {
+                    await message.channel.delete();
+                } catch(e) {}
+            }, 500);
+            return;
+        }
     }
 
     if (message.content.trim() === "قفل" && hasAdminRole) {
@@ -885,8 +899,10 @@ client.on('interactionCreate', async (interaction) => {
         const existingTicket = guild.channels.cache.find(c => {
             const isTicketCategory = c.parentId === CONFIG.ticketCategory1 || c.parentId === CONFIG.ticketCategory2 || c.name.startsWith('ticket-');
             if (!isTicketCategory) return false;
+
             const hasUserOverwrite = c.permissionOverwrites && c.permissionOverwrites.cache.has(user.id);
-            return hasUserOverwrite;
+            const inChannelName = c.name.includes(user.username.toLowerCase()) || c.name.includes(user.id);
+            return hasUserOverwrite || inChannelName;
         });
 
         if (existingTicket) {
@@ -894,18 +910,8 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
 
-        const ticketCategories = [CONFIG.ticketCategory1, CONFIG.ticketCategory2];
-        let targetCategory = ticketCategories[0];
-
-        for (const catId of ticketCategories) {
-            const cat = guild.channels.cache.get(catId);
-            if (cat && cat.children.cache.size < 50) {
-                targetCategory = catId;
-                break;
-            }
-        }
-
         try {
+            // التكتات مقتصرة حصرياً على: صاحب التكت، السبورت، و the rine (adminControlRole)، وحظر رول البرايفت
             const ticketOverwrites = [
                 {
                     id: guild.id,
@@ -936,7 +942,7 @@ client.on('interactionCreate', async (interaction) => {
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${user.username}`,
                 type: 0,
-                parent: targetCategory,
+                parent: CONFIG.ticketCategory1,
                 permissionOverwrites: ticketOverwrites
             });
 
@@ -952,7 +958,7 @@ client.on('interactionCreate', async (interaction) => {
             );
 
             await ticketChannel.send({
-                content: `<@&${CONFIG.supportRole}> <@&${CONFIG.adminControlRole}>\n\n**اكتب مشكلتك قبل نجي**`,
+                content: `<@&${CONFIG.ticketSupportPingRole}> <@&${CONFIG.adminControlRole}>\n\n**اكتب مشكلتك قبل نجي**`,
                 components: [row]
             });
 
@@ -967,7 +973,7 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.customId.startsWith('summon_ticket_')) {
         const member = interaction.member;
 
-        if (!member.roles.cache.has(CONFIG.supportRole) && !member.roles.cache.has(CONFIG.adminControlRole) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
+        if (!member.roles.cache.has(CONFIG.ticketSupportPingRole) && !member.roles.cache.has(CONFIG.supportRole) && !member.roles.cache.has(CONFIG.adminControlRole) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
             await interaction.reply({ content: "ما معك رول الادارة/السبورت المخول بذلك.", ephemeral: true });
             return;
         }
@@ -1011,7 +1017,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.customId === 'summon_admin') {
-        const sentMsg = await interaction.channel.send({ content: `<@&${CONFIG.supportRole}> <@&${CONFIG.adminControlRole}>` });
+        const sentMsg = await interaction.channel.send({ content: `<@&${CONFIG.ticketSupportPingRole}> <@&${CONFIG.adminControlRole}>` });
         setTimeout(async () => {
             try { await sentMsg.delete(); } catch(e) {}
         }, 3000);
@@ -1280,6 +1286,7 @@ client.on('interactionCreate', async (interaction) => {
             try {
                 const roomName = contentBody.slice(0, 95) || `room-${targetUserId}`;
 
+                // الروم المنشأ (إنشاء روم) مقتصر فقط على: the rine وصاحب الروم فقط
                 const roomOverwrites = [
                     {
                         id: guild.id,
@@ -1381,12 +1388,12 @@ client.on('interactionCreate', async (interaction) => {
                     await targetUser.send("تم رفض طلبك للرول البرايفت");
                 }
             } catch(e) {}
-            await interaction.update({ content: "تم الطلب.", components: [] });
+            await interaction.update({ content: "تم رفض الطلب.", components: [] });
             try { if (originalChannelId) await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
             return;
         }
 
-        if (action: action === 'approve') {
+        if (action === 'approve') {
             const roleId = "1547161341045776484";
             const role = interaction.guild.roles.cache.get(roleId);
 
