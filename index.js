@@ -884,7 +884,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            // التكتات: يراها الأونرية، السبورت، وصاحب التكت فقط، مع إزالة رول البرايفت كلياً
+            // التكتات الجديدة: تنفتح بالآيدي 1545852986188628108 ولا يشاهدها إلا البوت، الأونرية، الرتبتين، وصاحب التكت حصرياً
             const ticketOverwrites = [
                 {
                     id: guild.id,
@@ -895,27 +895,23 @@ client.on('interactionCreate', async (interaction) => {
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
-                    id: CONFIG.ticketSupportPingRole,
+                    id: "1545853407825231962", // الرتبة الأولى المطلوبة
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
-                    id: CONFIG.supportRole,
+                    id: "1545853891101466746", // الرتبة الثانية المطلوبة
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
                     id: CONFIG.adminControlRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
-                },
-                {
-                    id: CONFIG.privateRole,
-                    deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 }
             ];
 
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${user.username}`,
                 type: 0,
-                parent: CONFIG.ticketCategory1,
+                parent: "1545852986188628108",
                 permissionOverwrites: ticketOverwrites
             });
 
@@ -931,7 +927,7 @@ client.on('interactionCreate', async (interaction) => {
             );
 
             await ticketChannel.send({
-                content: `<@&${CONFIG.ticketSupportPingRole}> <@&${CONFIG.adminControlRole}>\n\n**اكتب مشكلتك قبل نجي**`,
+                content: `<@&1545853407825231962> <@&1545853891101466746> <@&${CONFIG.adminControlRole}>\n\n**اكتب مشكلتك قبل نجي**`,
                 components: [row]
             });
 
@@ -990,7 +986,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.customId === 'summon_admin') {
-        const sentMsg = await interaction.channel.send({ content: `<@&${CONFIG.ticketSupportPingRole}> <@&${CONFIG.adminControlRole}>` });
+        const sentMsg = await interaction.channel.send({ content: `<@&1545853407825231962> <@&1545853891101466746> <@&${CONFIG.adminControlRole}>` });
         setTimeout(async () => {
             try { await sentMsg.delete(); } catch(e) {}
         }, 3000);
