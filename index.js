@@ -860,12 +860,15 @@ client.on('interactionCreate', async (interaction) => {
                 {
                     id: CONFIG.adminControlRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
-                },
-                {
-                    id: CONFIG.privateRole,
-                    deny: [PermissionFlagsBits.ViewChannel]
                 }
             ];
+
+            if (CONFIG.privateRole) {
+                ticketOverwrites.push({
+                    id: CONFIG.privateRole,
+                    deny: [PermissionFlagsBits.ViewChannel]
+                });
+            }
 
             const ticketCategory = guild.channels.cache.get(CONFIG.ticketCategory1);
 
@@ -1303,7 +1306,7 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    if (interaction.customId.startsWith('approve_makhfi_') || interaction.customId.startsWith('deny_makhfi_')) {
+    if (interaction.customId.startsWith('approve_makhfi_`') || interaction.customId.startsWith('approve_makhfi_') || interaction.customId.startsWith('deny_makhfi_')) {
         const parts = interaction.customId.split('_');
         const action = parts[0];
         const targetUserId = parts[2];
