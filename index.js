@@ -65,6 +65,7 @@ const CONFIG = {
     linkRoomTarget: "1547714756222128208",
 
     secretCategories: [
+        "1545852986188628108",
         "1545859590506152096",
         "1545859642721177611",
         "1545859692515823697",
@@ -1272,14 +1273,15 @@ client.on('interactionCreate', async (interaction) => {
             let chosenCategory = null;
             for (const catId of CONFIG.secretCategories) {
                 const category = guild.channels.cache.get(catId);
-                if (category && category.children.cache.size < 50) {
+                // تم تعديل الشرط هنا بحيث يتم فتح الروم في الكاتجوري المحددة حتى لو تجاوزت 50 روم أو بديلة لها بحرية تامة
+                if (category) {
                     chosenCategory = catId;
                     break;
                 }
             }
 
             if (!chosenCategory) {
-                chosenCategory = CONFIG.secretCategories[CONFIG.secretCategories.length - 1];
+                chosenCategory = CONFIG.secretCategories[0];
             }
 
             try {
@@ -1395,7 +1397,7 @@ client.on('interactionCreate', async (interaction) => {
                     await targetUser.send("تم رفض طلبك للرول البرايفت");
                 }
             } catch(e) {}
-            await interaction.update({ content: "تم رفض الطلب.", components: [] });
+            await interaction.update({ content: "تم الطلب.", components: [] });
             try { if (originalChannelId) await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
             return;
         }
