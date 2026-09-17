@@ -46,7 +46,7 @@ const CONFIG = {
     adminControlRole: "1545853891101466746", // رول the rint Fire (الأونرية)
     ticketSupportPingRole: "1545853407825231962",
     
-    privateRole: "1547232423522082816", // رول البرايفت (مفصول تماماً عن رومات الويف والطلبات والحذف)
+    privateRole: "1547232423522082816", // رول البرايفت
 
     roleRequestRoom: "1546928048174014566", 
     supportLogRoom: "1546933674673447042",
@@ -153,7 +153,7 @@ client.once('ready', async () => {
 client.on('channelCreate', async (channel) => {
     if (!channel.guild) return;
     
-    if (channel.parentId === CONFIG.secretRoomVoiceLog || channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
+    if (channel.parentId === CONFIG.secretRoomVoiceLog || channel.parentId === CONFIG.deleteRoomVoiceLog || channel.parentId === CONFIG.makhfiCategory || channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
         try {
             const overwrites = [
                 {
@@ -904,6 +904,10 @@ client.on('interactionCreate', async (interaction) => {
                 {
                     id: CONFIG.adminControlRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
+                },
+                {
+                    id: CONFIG.privateRole,
+                    deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 }
             ];
 
@@ -1262,12 +1266,11 @@ client.on('interactionCreate', async (interaction) => {
                 } catch (err) {}
             }
 
-            let chosenCategory = CONFIG.secretRoomVoiceLog; // استخدام كاتجوري إنشاء روم المذكور بدقة
+            let chosenCategory = CONFIG.secretRoomVoiceLog;
 
             try {
                 const roomName = contentBody.slice(0, 95) || `room-${targetUserId}`;
 
-                // الصلاحيات: لا يراه إلا صاحب الروم والأونرية (the rint fire) حصرياً
                 const roomOverwrites = [
                     {
                         id: guild.id,
@@ -1307,7 +1310,6 @@ client.on('interactionCreate', async (interaction) => {
                     stats.daily += 1;
                 }
 
-                // **تعديل جوهري:** جعل الروم ينحذف تلقائياً بعد 10 دقائق (600,000 ملي ثانية) بناءً على طلبك
                 setTimeout(async () => {
                     try {
                         const channelToDelete = guild.channels.cache.get(newSecretRoom.id);
@@ -1364,7 +1366,7 @@ client.on('interactionCreate', async (interaction) => {
             }
 
             await interaction.update({ content: "تمت الموافقة وحذف الروم بنجاح.", components: [] });
-            try { if (originalChannelId) await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
+            try { if (originalChildId => interaction.guild.channels.cache.get(originalChannelId)?.delete()) {} catch(e) {}
         }
         return;
     }
@@ -1375,7 +1377,7 @@ client.on('interactionCreate', async (interaction) => {
         const targetUserId = parts.length > 2 ? parts[2] : '';
         const originalChannelId = parts.length > 3 ? parts[3] : '';
 
-        const targetUser = targetUserId ? await interaction.guild.members.fetch(targetUserId).catch(() => null) : null;
+        const targetUser = targetUserId ? await interaction.guild.members.fetch(targetUserId).catch(() => { return null; }) : null;
 
         if (action === 'deny') {
             try {
