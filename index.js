@@ -52,12 +52,14 @@ const CONFIG = {
     supportLogRoom: "1546933674673447042",
 
     secretRoomSetupChannel: "1545856705110220883",
-    secretRoomVoiceLog: "1545857287934054480",
+    secretRoomVoiceLog: "1545857287934054480", // كاتجوري إنشاء روم
     secretRoomRequestsChannel: "1545859174750224454",
 
     deleteRoomSetupChannel: "1547232353095778355",
-    deleteRoomVoiceLog: "1547232423522082816",
+    deleteRoomVoiceLog: "1547232423522082816", // كاتجوري حذف روم
     deleteRoomRequestsChannel: "1547233488418246796",
+
+    makhfiCategory: "1547691348168155297", // كاتجوري طلب مخفي
 
     secretApprovalChannel: "1545859261526048890",
     topChannelId: "1547705159830863912",
@@ -151,7 +153,6 @@ client.once('ready', async () => {
 client.on('channelCreate', async (channel) => {
     if (!channel.guild) return;
     
-    // تأمين الكاتجوري للويف والتكتات بالصلاحيات الصحيحة المطلوبة
     if (channel.parentId === CONFIG.secretRoomVoiceLog || channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
         try {
             const overwrites = [
@@ -160,7 +161,7 @@ client.on('channelCreate', async (channel) => {
                     deny: [PermissionFlagsBits.ViewChannel]
                 },
                 {
-                    id: CONFIG.adminControlRole, // the rint Fire (الأونرية)
+                    id: CONFIG.adminControlRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
                 }
             ];
@@ -178,7 +179,6 @@ client.on('channelCreate', async (channel) => {
                 );
             }
 
-            // إزالة رول البرايفت كلياً ومنعه ذكياً
             overwrites.push({
                 id: CONFIG.privateRole,
                 deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
@@ -884,7 +884,6 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            // التكتات الجديدة: تنفتح بالآيدي 1545852986188628108 ولا يشاهدها إلا البوت، الأونرية، الرتبتين، وصاحب التكت حصرياً
             const ticketOverwrites = [
                 {
                     id: guild.id,
@@ -895,11 +894,11 @@ client.on('interactionCreate', async (interaction) => {
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
-                    id: "1545853407825231962", // الرتبة الأولى المطلوبة
+                    id: "1545853407825231962",
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
-                    id: "1545853891101466746", // الرتبة الثانية المطلوبة
+                    id: "1545853891101466746",
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
@@ -911,7 +910,7 @@ client.on('interactionCreate', async (interaction) => {
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${user.username}`,
                 type: 0,
-                parent: "1545852986188628108",
+                parent: CONFIG.ticketCategory1,
                 permissionOverwrites: ticketOverwrites
             });
 
@@ -1048,7 +1047,6 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            // رومات الويف: يراها صاحب الروم، السبورت، و the rine فقط، مع منع رول البرايفت كلياً
             const wefOverwrites = [
                 {
                     id: guild.id,
@@ -1065,15 +1063,15 @@ client.on('interactionCreate', async (interaction) => {
                     ]
                 },
                 {
-                    id: CONFIG.adminControlRole, // the rint Fire (الأونرية)
+                    id: CONFIG.adminControlRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
-                    id: CONFIG.supportRole, // السبورت
+                    id: CONFIG.supportRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
-                    id: CONFIG.privateRole, // استبعاد تام لرول البرايفت
+                    id: CONFIG.privateRole,
                     deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 }
             ];
@@ -1114,7 +1112,6 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            // رومات حذف الروم: يراها صاحب الروم، السبورت، و the rine فقط، مع منع رول البرايفت كلياً
             const delOverwrites = [
                 {
                     id: guild.id,
@@ -1131,15 +1128,15 @@ client.on('interactionCreate', async (interaction) => {
                     ]
                 },
                 {
-                    id: CONFIG.adminControlRole, // the rint Fire (الأونرية)
+                    id: CONFIG.adminControlRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
-                    id: CONFIG.supportRole, // السبورت
+                    id: CONFIG.supportRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
-                    id: CONFIG.privateRole, // استبعاد تام لرول البرايفت
+                    id: CONFIG.privateRole,
                     deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 }
             ];
@@ -1180,7 +1177,6 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         try {
-            // طلب الرول المخفي: يراها صاحب الروم، السبورت، و the rine فقط، مع منع رول البرايفت كلياً
             const makhfiOverwrites = [
                 {
                     id: guild.id,
@@ -1197,15 +1193,15 @@ client.on('interactionCreate', async (interaction) => {
                     ]
                 },
                 {
-                    id: CONFIG.adminControlRole, // the rint Fire (الأونرية)
+                    id: CONFIG.adminControlRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
-                    id: CONFIG.supportRole, // السبورت
+                    id: CONFIG.supportRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
-                    id: CONFIG.privateRole, // استبعاد تام لرول البرايفت
+                    id: CONFIG.privateRole,
                     deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 }
             ];
@@ -1213,7 +1209,7 @@ client.on('interactionCreate', async (interaction) => {
             const makhfiChannel = await guild.channels.create({
                 name: `رول-مخفي-${user.username}`,
                 type: 0,
-                parent: "1547691348168155297",
+                parent: CONFIG.makhfiCategory,
                 permissionOverwrites: makhfiOverwrites
             });
 
@@ -1266,43 +1262,27 @@ client.on('interactionCreate', async (interaction) => {
                 } catch (err) {}
             }
 
-            let chosenCategory = null;
-            for (const catId of CONFIG.secretCategories) {
-                const category = guild.channels.cache.get(catId);
-                // تم تعديل الشرط هنا بحيث يتم فتح الروم في الكاتجوري المحددة حتى لو تجاوزت 50 روم أو بديلة لها بحرية تامة
-                if (category) {
-                    chosenCategory = catId;
-                    break;
-                }
-            }
-
-            if (!chosenCategory) {
-                chosenCategory = CONFIG.secretCategories[0];
-            }
+            let chosenCategory = CONFIG.secretRoomVoiceLog; // استخدام كاتجوري إنشاء روم المذكور بدقة
 
             try {
                 const roomName = contentBody.slice(0, 95) || `room-${targetUserId}`;
 
-                // الرومات السرية النهائية: يراها صاحب الروم، السبورت، و the rine فقط، مع منع رول البرايفت كلياً
+                // الصلاحيات: لا يراه إلا صاحب الروم والأونرية (the rint fire) حصرياً
                 const roomOverwrites = [
                     {
                         id: guild.id,
                         deny: [PermissionFlagsBits.ViewChannel]
                     },
                     {
-                        id: CONFIG.adminControlRole, // the rint Fire (الأونرية)
+                        id: CONFIG.adminControlRole,
                         allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
                     },
                     {
-                        id: CONFIG.supportRole, // السبورت
+                        id: targetUserId,
                         allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
                     },
                     {
-                        id: targetUserId, // صاحب الروم
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
-                    },
-                    {
-                        id: CONFIG.privateRole, // استبعاد تام لرول البرايفت
+                        id: CONFIG.privateRole,
                         deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
                     }
                 ];
@@ -1327,7 +1307,17 @@ client.on('interactionCreate', async (interaction) => {
                     stats.daily += 1;
                 }
 
-                await interaction.update({ content: `تم الموافقة وإنشاء الروم بنجاح: ${newSecretRoom}`, components: [] });
+                // **تعديل جوهري:** جعل الروم ينحذف تلقائياً بعد 10 دقائق (600,000 ملي ثانية) بناءً على طلبك
+                setTimeout(async () => {
+                    try {
+                        const channelToDelete = guild.channels.cache.get(newSecretRoom.id);
+                        if (channelToDelete) {
+                            await channelToDelete.delete();
+                        }
+                    } catch (e) {}
+                }, 600000);
+
+                await interaction.update({ content: `تم الموافقة وإنشاء الروم بنجاح (سينحذف تلقائياً بعد 10 دقائق): ${newSecretRoom}`, components: [] });
                 try { await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
             } catch (err) {
                 console.error(err);
@@ -1383,7 +1373,7 @@ client.on('interactionCreate', async (interaction) => {
         const parts = interaction.customId.split('_');
         const action = parts[0];
         const targetUserId = parts.length > 2 ? parts[2] : '';
-        const originalChannelId = parts.length > 3 ? parts.length > 3 ? parts[3] : '' : '';
+        const originalChannelId = parts.length > 3 ? parts[3] : '';
 
         const targetUser = targetUserId ? await interaction.guild.members.fetch(targetUserId).catch(() => null) : null;
 
