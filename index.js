@@ -42,14 +42,14 @@ const CONFIG = {
     ticketCategory1: "1545852986188628108", 
     ticketCategory2: "1545853004673196172", 
     
-    supportRole: "1547161341045776484", 
+    supportRole: "1558819326952345600", 
     adminControlRole: "1545853891101466746", // رول the rint Fire (الأونرية)
-    ticketSupportPingRole: "1545853407825231962",
+    ticketSupportPingRole: "1558832820732821607", 
     
     privateRole: "1547232423522082816", // رول البرايفت
 
-    roleRequestRoom: "1546928048174014566", 
-    supportLogRoom: "1546933674673447042",
+    roleRequestRoom: "1558833018670424104", 
+    supportLogRoom: "1558833303421849630", 
 
     secretRoomSetupChannel: "1545856705110220883",
     secretRoomVoiceLog: "1545857287934054480", // كاتجوري إنشاء روم
@@ -64,7 +64,7 @@ const CONFIG = {
     secretApprovalChannel: "1545859261526048890",
     topChannelId: "1547705159830863912",
     makhfiApprovalChannel: "1547692687195635813",
-    linkRoomTarget: "1547714756222128208",
+    linkRoomTarget: "1558834241549242469", // تم التحديث بناءً على طلبك
 
     secretCategories: [
         "1545852986188628108",
@@ -121,7 +121,7 @@ client.once('ready', async () => {
                 descText = "لا توجد نقاط مسجلة حتى الآن.";
             } else {
                 sortedUsers.forEach(([userId, data], index) => {
-                    descText += `- ${index + 1} <@${userId}> ⟶ ${data.total}\n`;
+                    descText += `- ${index + 1} <@${userId}> ⟶${data.total}\n`;
                 });
             }
 
@@ -169,7 +169,7 @@ client.on('channelCreate', async (channel) => {
             if (channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
                 overwrites.push(
                     {
-                        id: CONFIG.ticketSupportPingRole,
+                        id: "1558832820732821607",
                         allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                     },
                     {
@@ -207,7 +207,7 @@ client.on('messageCreate', async (message) => {
     const isOwner = message.author.id === message.guild.ownerId;
     const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
-    const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) || hasAdminRole;
+    const hasTicketSupportRole = message.member.roles.cache.has("1558832820732821607") || hasAdminRole;
 
     const linkRegex = /(https?:\/\/[^\s]+|discord\.gg\/[^\s]+|discord\.com\/invite\/[^\s]+)/i;
     if (linkRegex.test(message.content)) {
@@ -798,13 +798,13 @@ client.on('messageCreate', async (message) => {
 
     if ((cleanMsg === "إخفاء" || cleanMsg === "اخفا") && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
-        await message.channel.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: false });
+        await message.channel.permissionOverwrites.edit("1558819050908418058", { ViewChannel: false });
         return;
     }
 
     if ((cleanMsg === "إظهار" || cleanMsg === "اظهار") && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
-        await message.channel.permissionOverwrites.edit(CONFIG.unverifiedRole, { ViewChannel: null });
+        await message.channel.permissionOverwrites.edit("1558819050908418058", { ViewChannel: null });
         return;
     }
 
@@ -894,7 +894,7 @@ client.on('interactionCreate', async (interaction) => {
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
-                    id: "1545853407825231962",
+                    id: "1558832820732821607",
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
@@ -930,7 +930,7 @@ client.on('interactionCreate', async (interaction) => {
             );
 
             await ticketChannel.send({
-                content: `<@&1545853407825231962> <@&1545853891101466746> <@&${CONFIG.adminControlRole}>\n\n**اكتب مشكلتك قبل نجي**`,
+                content: `<@&1558832820732821607> <@&1545853891101466746> <@&${CONFIG.adminControlRole}>\n\n**اكتب مشكلتك قبل نجي**`,
                 components: [row]
             });
 
@@ -945,7 +945,7 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.customId.startsWith('summon_ticket_')) {
         const member = interaction.member;
 
-        if (!member.roles.cache.has(CONFIG.ticketSupportPingRole) && !member.roles.cache.has(CONFIG.adminControlRole) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
+        if (!member.roles.cache.has("1558832820732821607") && !member.roles.cache.has(CONFIG.adminControlRole) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
             await interaction.reply({ content: "ما معك رول الادارة/السبورت المخول بذلك.", ephemeral: true });
             return;
         }
@@ -989,7 +989,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.customId === 'summon_admin') {
-        const sentMsg = await interaction.channel.send({ content: `<@&1545853407825231962> <@&1545853891101466746> <@&${CONFIG.adminControlRole}>` });
+        const sentMsg = await interaction.channel.send({ content: `<@&1558832820732821607> <@&1545853891101466746> <@&${CONFIG.adminControlRole}>` });
         setTimeout(async () => {
             try { await sentMsg.delete(); } catch(e) {}
         }, 3000);
