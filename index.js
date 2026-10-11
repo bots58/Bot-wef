@@ -35,15 +35,15 @@ const client = new Client({
 
 const CONFIG = {
     verificationRoom: "1545846837192429578",
-    verifiedRole: "1558819214595194950",   // رول مفعل (المحدث)
-    unverifiedRole: "1558819050908418058", // رول غير مفعل عند الدخول (المحدث)
+    verifiedRole: "1558819214595194950",   // رول مفعل
+    unverifiedRole: "1558819050908418058", // رول غير مفعل عند الدخول
     
     ticketSetupRoom: "1545847197768360000",
     ticketCategory1: "1545852986188628108", 
     ticketCategory2: "1545853004673196172", 
     
     supportRole: "1558819326952345600", 
-    adminControlRole: "1558819326952345600", // رول الأونر (the rint Fire)
+    adminControlRole: "1558819326952345600", // رول الأونر
     ticketSupportPingRole: "1558832820732821607", 
     
     privateRole: "1547232423522082816", // رول البرايفت
@@ -51,38 +51,24 @@ const CONFIG = {
     roleRequestRoom: "1558833018670424104", 
     supportLogRoom: "1558833303421849630", 
 
-    secretRoomSetupChannel: "1545856705110220883",
-    secretRoomVoiceLog: "1545857287934054480", 
-    secretRoomRequestsChannel: "1545859174750224454",
+    // أيدي اللوجات والكاتجوريات لفتح الرومات ودراسة الطلبات:
+    secretRoomVoiceLog: "1558828949658931290",       // لوج ينفتح فيه روم إنشاء الويف
+    secretApprovalChannel: "1558829128445337743",    // روم دراسة قبول ورفض إنشاء روم
 
-    deleteRoomSetupChannel: "1547232353095778355",
-    deleteRoomVoiceLog: "1547232423522082816", 
-    deleteRoomRequestsChannel: "1547233488418246796",
+    deleteRoomVoiceLog: "1558829425351729212",       // لوج ينفتح فيه روم طلب الحذف
+    deleteRoomRequestsChannel: "1558829580205166632", // روم دراسة قبول ورفض حذف الروم
 
-    makhfiCategory: "1547691348168155297", 
+    makhfiCategory: "1558827346172190810",           // كاتجوري/لوج ينفتح فيه روم طلب المخفي
+    makhfiApprovalChannel: "1558828242389962875",     // روم دراسة قبول ورفض طلب المخفي
 
-    secretApprovalChannel: "1545859261526048890",
     topChannelId: "1547705159830863912",
-    makhfiApprovalChannel: "1547692687195635813",
-    linkRoomTarget: "1558834241549242469",
-
-    secretCategories: [
-        "1545852986188628108",
-        "1545859590506152096",
-        "1545859642721177611",
-        "1545859692515823697",
-        "1545859739001561098",
-        "1545859775844065433",
-        "1545859961202937907",
-        "1545859984833773588",
-        "15460027355504681",
-        "15460051984588890"
-    ]
+    linkRoomTarget: "1558834241549242469"
 };
 
 function getValidParent(guild, parentId) {
+    if (!parentId) return null;
     const channel = guild.channels.cache.get(parentId);
-    return (channel && channel.type === 4) ? parentId : undefined;
+    return (channel && channel.type === 4) ? parentId : null;
 }
 
 const summonCooldowns = new Map();
@@ -153,47 +139,6 @@ client.once('ready', async () => {
             console.error("Error in top interval update:", err);
         }
     }, 30000);
-});
-
-client.on('channelCreate', async (channel) => {
-    if (!channel.guild) return;
-    
-    if (channel.parentId === CONFIG.secretRoomVoiceLog || channel.parentId === CONFIG.deleteRoomVoiceLog || channel.parentId === CONFIG.makhfiCategory || channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
-        try {
-            const overwrites = [
-                {
-                    id: channel.guild.id,
-                    deny: [PermissionFlagsBits.ViewChannel]
-                },
-                {
-                    id: CONFIG.adminControlRole,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
-                }
-            ];
-
-            if (channel.parentId === CONFIG.ticketCategory1 || channel.parentId === CONFIG.ticketCategory2) {
-                overwrites.push(
-                    {
-                        id: "1558832820732821607",
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    },
-                    {
-                        id: CONFIG.supportRole,
-                        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                    }
-                );
-            }
-
-            overwrites.push({
-                id: CONFIG.privateRole,
-                deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-            });
-
-            await channel.permissionOverwrites.set(overwrites);
-        } catch (err) {
-            console.error("Error setting channel permissions:", err);
-        }
-    }
 });
 
 client.on('guildMemberAdd', async (member) => {
@@ -388,7 +333,7 @@ client.on('messageCreate', async (message) => {
             const errNotice = await message.channel.send({ content: `${message.author} هذا الأمر مخصص فقط لمن يملك رول الأونرية.` });
             setTimeout(async () => {
                 try { await errNotice.delete(); } catch(e) {}
-            }, 5000);
+            }, 500);
             return;
         }
 
@@ -468,6 +413,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
+    // نظام الرولات الذكي بالبحث الجزئي
     if (hasSupportRole && message.content.startsWith("رول")) {
         let targetMember = null;
         let roleSearchText = "";
@@ -492,13 +438,15 @@ client.on('messageCreate', async (message) => {
         }
 
         if (targetMember && roleSearchText.length > 0) {
+            await message.guild.roles.fetch();
             const allRoles = message.guild.roles.cache;
             let foundRole = null;
+            const search = roleSearchText.toLowerCase();
 
             for (const role of allRoles.values()) {
                 if (role.id === message.guild.id) continue;
-                const roleName = role.name.trim();
-                if (roleName.toLowerCase() === roleSearchText.toLowerCase() || roleName.toLowerCase().startsWith(roleSearchText.toLowerCase())) {
+                const roleName = role.name.trim().toLowerCase();
+                if (roleName === search || roleName.includes(search) || roleName.startsWith(search)) {
                     foundRole = role;
                     break;
                 }
@@ -512,7 +460,7 @@ client.on('messageCreate', async (message) => {
                 if (logChannel) {
                     const embed = new EmbedBuilder()
                         .setTitle(actionType === 'add' ? "طلب إعطاء رول" : "طلب سحب رول")
-                        .setDescription(`المعطا/المسحوب منه: ${targetMember}\nبواسطة السبورت: ${message.author}\nالرول المطلوب: ${foundRole.name}`)
+                        .setDescription(`العضو: ${targetMember}\nبواسطة السبورت: ${message.author}\nالرول المطلوب: ${foundRole.name}`)
                         .setColor(0x2f3136);
 
                     const row = new ActionRowBuilder().addComponents(
@@ -548,7 +496,9 @@ client.on('messageCreate', async (message) => {
         }
     }
 
+    // إرسال الأزرار مباشرة في نفس الروم الذي يكتب فيه الأمر
     if (message.content.trim() === "!setup_secret" && hasAdminRole) {
+        try { await message.delete(); } catch(e) {}
         const embed = new EmbedBuilder()
             .setDescription("انشاء رومك على من تكره بسرية تامه")
             .setColor(0x2f3136);
@@ -561,11 +511,11 @@ client.on('messageCreate', async (message) => {
         );
 
         await message.channel.send({ embeds: [embed], components: [row] });
-        try { await message.delete(); } catch(e) {}
         return;
     }
 
     if (message.content.trim() === "!setup_delete" && hasAdminRole) {
+        try { await message.delete(); } catch(e) {}
         const embed = new EmbedBuilder()
             .setDescription("إذا تبي تحذف روم شخص تعزه فك روم سري من تحت")
             .setColor(0x2f3136);
@@ -578,11 +528,11 @@ client.on('messageCreate', async (message) => {
         );
 
         await message.channel.send({ embeds: [embed], components: [row] });
-        try { await message.delete(); } catch(e) {}
         return;
     }
 
     if (message.content.trim() === "ستيب مخفي" && hasAdminRole) {
+        try { await message.delete(); } catch(e) {}
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('open_makhfi_room')
@@ -598,7 +548,6 @@ client.on('messageCreate', async (message) => {
             embeds: [embed],
             components: [row]
         });
-        try { await message.delete(); } catch(e) {}
         return;
     }
 
@@ -753,21 +702,19 @@ client.on('messageCreate', async (message) => {
     }
 
     if (cleanMsg === "!setup_ticket" && hasAdminRole) {
-        const channel = message.guild.channels.cache.get(CONFIG.ticketSetupRoom);
-        if (channel) {
-            const embed = new EmbedBuilder()
-                .setDescription("إذا واجهتك اي مشكله او تبي البرايفت فك تكت من الزر الي تحت")
-                .setColor(0x2f3136);
+        const channel = message.guild.channels.cache.get(CONFIG.ticketSetupRoom) || message.channel;
+        const embed = new EmbedBuilder()
+            .setDescription("إذا واجهتك اي مشكله او تبي البرايفت فك تكت من الزر الي تحت")
+            .setColor(0x2f3136);
 
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('create_ticket_btn')
-                    .setLabel('فك تكت')
-                    .setStyle(ButtonStyle.Secondary)
-            );
-            await channel.send({ embeds: [embed], components: [row] });
-            await message.reply("تم إرسال زر التكت بنجاح!");
-        }
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('create_ticket_btn')
+                .setLabel('فك تكت')
+                .setStyle(ButtonStyle.Secondary)
+        );
+        await channel.send({ embeds: [embed], components: [row] });
+        try { await message.delete(); } catch(e) {}
         return;
     }
 
@@ -889,7 +836,7 @@ client.on('interactionCreate', async (interaction) => {
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${user.username}`,
                 type: 0,
-                parent: CONFIG.ticketCategory1,
+                parent: getValidParent(guild, CONFIG.ticketCategory1),
                 permissionOverwrites: ticketOverwrites
             });
 
@@ -1075,6 +1022,7 @@ client.on('interactionCreate', async (interaction) => {
             }, 600000);
 
         } catch (err) {
+            console.error("Error creating wef channel:", err);
             await interaction.reply({ content: "حدث خطأ أثناء إنشاء الروم.", ephemeral: true });
         }
         return;
@@ -1140,6 +1088,7 @@ client.on('interactionCreate', async (interaction) => {
             }, 600000);
 
         } catch (err) {
+            console.error("Error creating delete channel:", err);
             await interaction.reply({ content: "حدث خطأ أثناء إنشاء الروم.", ephemeral: true });
         }
         return;
@@ -1205,6 +1154,7 @@ client.on('interactionCreate', async (interaction) => {
             }, 600000);
 
         } catch (err) {
+            console.error("Error creating makhfi channel:", err);
             await interaction.reply({ content: "حدث خطأ أثناء إنشاء الروم.", ephemeral: true });
         }
         return;
