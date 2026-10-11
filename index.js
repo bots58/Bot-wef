@@ -64,7 +64,7 @@ const CONFIG = {
     secretApprovalChannel: "1545859261526048890",
     topChannelId: "1547705159830863912",
     makhfiApprovalChannel: "1547692687195635813",
-    linkRoomTarget: "1558834241549242469", // تم التحديث بناءً على طلبك
+    linkRoomTarget: "1558834241549242469",
 
     secretCategories: [
         "1545852986188628108",
@@ -1366,7 +1366,11 @@ client.on('interactionCreate', async (interaction) => {
             }
 
             await interaction.update({ content: "تمت الموافقة وحذف الروم بنجاح.", components: [] });
-            try { if (originalChildId => interaction.guild.channels.cache.get(originalChannelId)?.delete()) {} catch(e) {}
+            try { 
+                if (originalChannelId) {
+                    await interaction.guild.channels.cache.get(originalChannelId)?.delete();
+                }
+            } catch(e) {}
         }
         return;
     }
