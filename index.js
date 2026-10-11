@@ -43,7 +43,7 @@ const CONFIG = {
     ticketCategory2: "1545853004673196172", 
     
     supportRole: "1558819326952345600", 
-    adminControlRole: "1545853891101466746", // رول the rint Fire (الأونرية)
+    adminControlRole: "1558819326952345600", // رول الأونر (the rint Fire)
     ticketSupportPingRole: "1558832820732821607", 
     
     privateRole: "1547232423522082816", // رول البرايفت
@@ -52,14 +52,14 @@ const CONFIG = {
     supportLogRoom: "1558833303421849630", 
 
     secretRoomSetupChannel: "1545856705110220883",
-    secretRoomVoiceLog: "1545857287934054480", // كاتجوري إنشاء روم
+    secretRoomVoiceLog: "1545857287934054480", 
     secretRoomRequestsChannel: "1545859174750224454",
 
     deleteRoomSetupChannel: "1547232353095778355",
-    deleteRoomVoiceLog: "1547232423522082816", // كاتجوري حذف روم
+    deleteRoomVoiceLog: "1547232423522082816", 
     deleteRoomRequestsChannel: "1547233488418246796",
 
-    makhfiCategory: "1547691348168155297", // كاتجوري طلب مخفي
+    makhfiCategory: "1547691348168155297", 
 
     secretApprovalChannel: "1545859261526048890",
     topChannelId: "1547705159830863912",
@@ -544,11 +544,6 @@ client.on('messageCreate', async (message) => {
     }
 
     if (message.content.trim() === "!setup_secret" && hasAdminRole) {
-        if (message.channel.id !== CONFIG.secretRoomSetupChannel) {
-            await message.reply(`هذا الأمر مخصص فقط للروم <#${CONFIG.secretRoomSetupChannel}>`);
-            return;
-        }
-
         const embed = new EmbedBuilder()
             .setDescription("انشاء رومك على من تكره بسرية تامه")
             .setColor(0x2f3136);
@@ -566,11 +561,6 @@ client.on('messageCreate', async (message) => {
     }
 
     if (message.content.trim() === "!setup_delete" && hasAdminRole) {
-        if (message.channel.id !== CONFIG.deleteRoomSetupChannel) {
-            await message.reply(`هذا الأمر مخصص فقط للروم <#${CONFIG.deleteRoomSetupChannel}>`);
-            return;
-        }
-
         const embed = new EmbedBuilder()
             .setDescription("إذا تبي تحذف روم شخص تعزه فك روم سري من تحت")
             .setColor(0x2f3136);
@@ -587,22 +577,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    if (message.content.trim() === "ستيب مخفي") {
-        if (!isOwner) {
-            try { await message.delete(); } catch(e) {}
-            const errNotice = await message.channel.send({ content: `${message.author} هذا الأمر مخصص لصاحب السيرفر (Owner) فقط.` });
-            setTimeout(async () => {
-                try { await errNotice.delete(); } catch(e) {}
-            }, 5000);
-            return;
-        }
-
-        const targetSetupRoom = "1547690677763055636";
-        if (message.channel.id !== targetSetupRoom) {
-            await message.reply(`هذا الأمر مخصص فقط للروم <#${targetSetupRoom}>`);
-            return;
-        }
-
+    if (message.content.trim() === "ستيب مخفي" && hasAdminRole) {
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('open_makhfi_room')
@@ -756,11 +731,6 @@ client.on('messageCreate', async (message) => {
 
     const cleanMsg = message.content.trim();
     if (cleanMsg === "ver" && hasAdminRole) {
-        if (message.channel.id !== CONFIG.verificationRoom) {
-            await message.reply(`هذا الأمر مخصص فقط للروم <#${CONFIG.verificationRoom}>`);
-            return;
-        }
-        
         const embed = new EmbedBuilder()
             .setDescription("للتنوية حنا سيرفر فضايح ولا نمس للابتزاز باي صلة")
             .setColor(0x2f3136);
