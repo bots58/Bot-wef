@@ -35,8 +35,8 @@ const client = new Client({
 
 const CONFIG = {
     verificationRoom: "1545846837192429578",
-    verifiedRole: "1545848708921425920", 
-    unverifiedRole: "1545848907156820100", 
+    verifiedRole: "1558819214595194950",   // رول مفعل (المحدث)
+    unverifiedRole: "1558819050908418058", // رول غير مفعل عند الدخول (المحدث)
     
     ticketSetupRoom: "1545847197768360000",
     ticketCategory1: "1545852986188628108", 
@@ -79,6 +79,11 @@ const CONFIG = {
         "15460051984588890"
     ]
 };
+
+function getValidParent(guild, parentId) {
+    const channel = guild.channels.cache.get(parentId);
+    return (channel && channel.type === 4) ? parentId : undefined;
+}
 
 const summonCooldowns = new Map();
 const linkCooldowns = new Map();
@@ -274,7 +279,7 @@ client.on('messageCreate', async (message) => {
 
     const msgContentTrimmed = message.content.trim();
     if (msgContentTrimmed === "اغلاق" || msgContentTrimmed === "إغلاق") {
-        if (message.member.roles.cache.has(CONFIG.adminControlRole) || hasAdminRole) {
+        if (message.member.roles.cache.has(CONFIG.adminControlRole) || hasAdminRole || message.member.roles.cache.has(CONFIG.supportRole)) {
             try { await message.delete(); } catch(e) {}
             setTimeout(async () => {
                 try {
@@ -868,7 +873,7 @@ client.on('interactionCreate', async (interaction) => {
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
-                    id: "1545853891101466746",
+                    id: CONFIG.supportRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
@@ -900,7 +905,7 @@ client.on('interactionCreate', async (interaction) => {
             );
 
             await ticketChannel.send({
-                content: `<@&1558832820732821607> <@&1545853891101466746> <@&${CONFIG.adminControlRole}>\n\n**اكتب مشكلتك قبل نجي**`,
+                content: `<@&1558832820732821607> <@&${CONFIG.supportRole}> <@&${CONFIG.adminControlRole}>\n\n**اكتب مشكلتك قبل نجي**`,
                 components: [row]
             });
 
@@ -915,7 +920,7 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.customId.startsWith('summon_ticket_')) {
         const member = interaction.member;
 
-        if (!member.roles.cache.has("1558832820732821607") && !member.roles.cache.has(CONFIG.adminControlRole) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
+        if (!member.roles.cache.has("1558832820732821607") && !member.roles.cache.has(CONFIG.supportRole) && !member.roles.cache.has(CONFIG.adminControlRole) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
             await interaction.reply({ content: "ما معك رول الادارة/السبورت المخول بذلك.", ephemeral: true });
             return;
         }
@@ -959,7 +964,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.customId === 'summon_admin') {
-        const sentMsg = await interaction.channel.send({ content: `<@&1558832820732821607> <@&1545853891101466746> <@&${CONFIG.adminControlRole}>` });
+        const sentMsg = await interaction.channel.send({ content: `<@&1558832820732821607> <@&${CONFIG.supportRole}> <@&${CONFIG.adminControlRole}>` });
         setTimeout(async () => {
             try { await sentMsg.delete(); } catch(e) {}
         }, 3000);
@@ -1053,7 +1058,7 @@ client.on('interactionCreate', async (interaction) => {
             const wefChannel = await guild.channels.create({
                 name: `wef-${user.username}`,
                 type: 0,
-                parent: CONFIG.secretRoomVoiceLog,
+                parent: getValidParent(guild, CONFIG.secretRoomVoiceLog),
                 permissionOverwrites: wefOverwrites
             });
 
@@ -1118,7 +1123,7 @@ client.on('interactionCreate', async (interaction) => {
             const delChannel = await guild.channels.create({
                 name: `delete-room-${user.username}`,
                 type: 0,
-                parent: CONFIG.deleteRoomVoiceLog,
+                parent: getValidParent(guild, CONFIG.deleteRoomVoiceLog),
                 permissionOverwrites: delOverwrites
             });
 
@@ -1183,7 +1188,7 @@ client.on('interactionCreate', async (interaction) => {
             const makhfiChannel = await guild.channels.create({
                 name: `رول-مخفي-${user.username}`,
                 type: 0,
-                parent: CONFIG.makhfiCategory,
+                parent: getValidParent(guild, CONFIG.makhfiCategory),
                 permissionOverwrites: makhfiOverwrites
             });
 
@@ -1263,7 +1268,7 @@ client.on('interactionCreate', async (interaction) => {
                 const newSecretRoom = await guild.channels.create({
                     name: roomName,
                     type: 0,
-                    parent: chosenCategory,
+                    parent: getValidParent(guild, chosenCategory),
                     permissionOverwrites: roomOverwrites
                 });
 
@@ -1365,7 +1370,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (action === 'approve') {
-            const roleId = "1547161341045776484";
+            const roleId = CONFIG.privateRole;
             const role = interaction.guild.roles.cache.get(roleId);
 
             if (targetUser && role) {
