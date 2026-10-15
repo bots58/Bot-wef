@@ -57,8 +57,8 @@ const CONFIG = {
     deleteRoomVoiceLog: "1558829425351729212",       // كاتجوري حذف روم
     deleteRoomRequestsChannel: "1558829580205166632", // قبول/رفض حذف روم
 
-    makhfiCategory: "1558827346172190810",           // كاتجوري طلب مخفي
-    makhfiApprovalChannel: "1558828242389962875",     // قبول/رفض طلب مخفي
+    makhfiCategory: "1558827346172190810",           // كاتجوري طلب البرايفت
+    makhfiApprovalChannel: "1558828242389962875",     // قبول/رفض طلب البرايفت
 
     topChannelId: "1547705159830863912",
     linkRoomTarget: "1558834241549242469"
@@ -647,7 +647,8 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    if (message.channel.name.startsWith("رول-مخفي-")) {
+    // إرسال طلب البرايفت لروم الموافقات
+    if (message.channel.name.startsWith("برايفت-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
 
@@ -674,11 +675,15 @@ client.on('messageCreate', async (message) => {
                     .setStyle(ButtonStyle.Secondary)
             );
 
-            await requestChannel.send({
-                content: `طلب رول مخفي من ${message.author}\n\n${userContent}`,
-                files: filesToSend,
-                components: [row]
-            });
+            let msgPayload = { components: [row] };
+            let fullText = userContent ? `${userContent}\nطلبايفت من العضو: ${message.author}` : `طلبايفت من العضو: ${message.author}`;
+            msgPayload.content = fullText;
+
+            if (filesToSend.length > 0) {
+                msgPayload.files = filesToSend;
+            }
+
+            await requestChannel.send(msgPayload);
         }
 
         await message.reply({ content: `تم إرسال طلبك للإدارة، انتظر الموافقة ${message.author}` });
@@ -686,7 +691,7 @@ client.on('messageCreate', async (message) => {
             try {
                 await message.channel.delete();
             } catch (e) {}
-        }, 5000);
+        }, 3000);
 
         return;
     }
@@ -966,7 +971,6 @@ client.on('interactionCreate', async (interaction) => {
             await wefChannel.send(`ارسل صورك والمقاطع واسم الروم\nوبيجينا طالب في حال وافقنا بينفك الروم`);
             await interaction.reply({ content: `تم إنشاء روم الطلب الخاص بك: ${wefChannel}`, ephemeral: true });
 
-            // حذف تلقائي بعد 10 دقائق (600,000 مللي ثانية)
             setTimeout(async () => {
                 try {
                     const channelToCheck = guild.channels.cache.get(wefChannel.id);
@@ -1026,7 +1030,6 @@ client.on('interactionCreate', async (interaction) => {
             await delChannel.send(`حياك الله اكتب دليلك لحذف الروم - مقاطع او كتابه وبينحذف`);
             await interaction.reply({ content: `تم إنشاء روم طلب الحذف: ${delChannel}`, ephemeral: true });
 
-            // حذف تلقائي بعد 10 دقائق (600,000 مللي ثانية)
             setTimeout(async () => {
                 try {
                     const channelToCheck = guild.channels.cache.get(delChannel.id);
@@ -1043,13 +1046,14 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
+    // فتح روم طلب البرايفت
     if (interaction.customId === 'open_makhfi_room') {
         const guild = interaction.guild;
         const user = interaction.user;
 
-        const existingMakhfi = guild.channels.cache.find(c => c.name === `رول-مخفي-${user.username}` && c.type === 0);
+        const existingMakhfi = guild.channels.cache.find(c => c.name === `برايفت-${user.username}` && c.type === 0);
         if (existingMakhfi) {
-            await interaction.reply({ content: "لديك روم مخفي مفتوح بالفعل.", ephemeral: true });
+            await interaction.reply({ content: "لديك روم باريفت مفتوح بالفعل.", ephemeral: true });
             return;
         }
 
@@ -1070,29 +1074,22 @@ client.on('interactionCreate', async (interaction) => {
                     ]
                 },
                 {
-                    id: CONFIG.adminControlRole,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                },
-                {
                     id: CONFIG.supportRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                },
-                {
-                    id: CONFIG.privateRole,
-                    deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 }
             ];
 
             const makhfiChannel = await guild.channels.create({
-                name: `رول-مخفي-${user.username}`,
+                name: `برايفت-${user.username}`,
                 type: 0,
                 parent: getValidParent(guild, CONFIG.makhfiCategory),
                 permissionOverwrites: makhfiOverwrites
             });
 
-            await makhfiChannel.send(`ارسل دليلك من صور وبينرسل طلبك للادارة <@&${CONFIG.adminControlRole}> <@${user.id}>`);
+            await makhfiChannel.send(`حياك الله اكتب دليلك`);
             await interaction.reply({ content: `تم انشاء الروم: ${makhfiChannel}`, ephemeral: true });
 
+            // حذف تلقائي بعد 10 دقائق (600,000 مللي ثانية)
             setTimeout(async () => {
                 try {
                     const channelToCheck = guild.channels.cache.get(makhfiChannel.id);
@@ -1249,6 +1246,7 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
+    // الموافقة أو الرفض على طلب البرايفت وإعطاء الرول
     if (interaction.customId.startsWith('approve_makhfi_') || interaction.customId.startsWith('deny_makhfi_')) {
         const parts = interaction.customId.split('_');
         const action = parts[0];
@@ -1263,7 +1261,7 @@ client.on('interactionCreate', async (interaction) => {
                     await targetUser.send("تم رفض طلبك للرول البرايفت");
                 }
             } catch(e) {}
-            await interaction.update({ content: "تم الطلب.", components: [] });
+            await interaction.update({ content: "تم رفض الطلب.", components: [] });
             try { if (originalChannelId) await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
             return;
         }
@@ -1275,7 +1273,7 @@ client.on('interactionCreate', async (interaction) => {
             if (targetUser && role) {
                 try {
                     await targetUser.roles.add(role);
-                    await targetUser.send("تم قبول طلبك وجاك رول البرايفت").catch(() => {});
+                    await targetUser.send("تم قبول طلبك وتم إعطاؤك رول البرايفت بنجاح!").catch(() => {});
                     const stats = checkAndResetDaily(targetUserId);
                     stats.total += 1;
                     stats.daily += 1;
@@ -1284,7 +1282,7 @@ client.on('interactionCreate', async (interaction) => {
                 }
             }
 
-            await interaction.update({ content: "تمت الموافقة وإعطاء الروم بنجاح.", components: [] });
+            await interaction.update({ content: "تمت الموافقة وإعطاء رول البرايفت بنجاح.", components: [] });
             try { if (originalChannelId) await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
         }
         return;
