@@ -35,7 +35,7 @@ const client = new Client({
 
 const CONFIG = {
     verificationRoom: "1545846837192429578",
-    verifiedRole: "1558819214595194950",   // رول مفعل
+    verifiedRole: "1558819214595194950",   // رول مفعل عند التفعيل
     unverifiedRole: "1558819050908418058", // رول غير مفعل عند الدخول
     
     ticketSetupRoom: "1545847197768360000",
@@ -139,6 +139,7 @@ client.once('ready', async () => {
     }, 30000);
 });
 
+// إعطاء رول غير المفعل تلقائياً عند دخول السيرفر
 client.on('guildMemberAdd', async (member) => {
     try {
         if (CONFIG.unverifiedRole) {
@@ -157,7 +158,6 @@ client.on('messageCreate', async (message) => {
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
     const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) || hasAdminRole;
 
-    // حماية الروابط العامة
     const linkRegex = /(https?:\/\/[^\s]+|discord\.gg\/[^\s]+|discord\.com\/invite\/[^\s]+)/i;
     if (linkRegex.test(message.content)) {
         if (!hasAdminRole) {
@@ -187,7 +187,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر اغلاق الرومات
     const msgContentTrimmed = message.content.trim();
     if (msgContentTrimmed === "اغلاق" || msgContentTrimmed === "إغلاق") {
         if (hasSupportRole) {
@@ -201,7 +200,6 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    // تعديل وتطبيق أمر النشر (حصري لرول الأدمن)
     if (hasAdminRole && pendingNasharEdits.has(message.author.id)) {
         pendingNasharEdits.delete(message.author.id);
         customNasharLinks = message.content;
@@ -255,7 +253,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر البرودكاست bc (حصري لرول الأدمن)
     if (hasAdminRole && message.content.startsWith("bc")) {
         const args = message.content.slice(2).trim();
         const filesToSend = [];
@@ -295,7 +292,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر رسالة (المطلوب مع الإمبيد الداكن) - (حصري لرول الأدمن)
     if ((message.content.startsWith("رسالة") || message.content.startsWith("رساله"))) {
         if (!hasAdminRole) {
             try { await message.delete(); } catch(e) {}
@@ -333,7 +329,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أوامر قفل وفتح ومسح (حصري لرول الأدمن)
     if (message.content.trim() === "قفل" && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         await message.channel.permissionOverwrites.edit(message.guild.id, { SendMessages: false });
@@ -369,7 +364,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // نظام طلب رول (مخصص للسبورت)
     if (hasSupportRole && message.content.startsWith("رول")) {
         let targetMember = null;
         let roleSearchText = "";
@@ -438,7 +432,6 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    // إعدادات اللوحات (حصري لرول الأدمن)
     if (message.content.trim() === "!setup_secret" && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         const embed = new EmbedBuilder()
@@ -493,7 +486,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // طلبات إنشاء الروم
     if (message.channel.name.startsWith("wef-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -542,7 +534,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // طلبات حذف الروم
     if (message.channel.name.startsWith("delete-room-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -591,7 +582,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // طلبات البرايفت
     if (message.channel.name.startsWith("برايفت-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -640,7 +630,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // أمر send
     if (message.content.startsWith("send") && hasSupportRole) {
         const textToSend = message.content.slice(4).trim();
         const filesToSend = [];
@@ -704,6 +693,23 @@ client.on('messageCreate', async (message) => {
 
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
+
+    // زر التفعيل (إزالة رول غير مفعل وإعطاء رول مفعل)
+    if (interaction.customId === 'verify_btn') {
+        const member = interaction.member;
+        try {
+            if (CONFIG.unverifiedRole && member.roles.cache.has(CONFIG.unverifiedRole)) {
+                await member.roles.remove(CONFIG.unverifiedRole);
+            }
+            if (CONFIG.verifiedRole && !member.roles.cache.has(CONFIG.verifiedRole)) {
+                await member.roles.add(CONFIG.verifiedRole);
+            }
+            await interaction.reply({ content: "تم تفعيلك بنجاح!", ephemeral: true });
+        } catch (err) {
+            await interaction.reply({ content: "تم تفعيلك بنجاح!", ephemeral: true }).catch(() => {});
+        }
+        return;
+    }
 
     if (interaction.customId === 'create_ticket_btn') {
         const guild = interaction.guild;
@@ -835,7 +841,6 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // انشاء روم ويف
     if (interaction.customId === 'open_wef_voice') {
         const guild = interaction.guild;
         const user = interaction.user;
@@ -894,7 +899,6 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // فتح روم طلب حذف روم
     if (interaction.customId === 'open_delete_voice') {
         const guild = interaction.guild;
         const user = interaction.user;
@@ -953,7 +957,6 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // فتح روم طلب البرايفت
     if (interaction.customId === 'open_makhfi_room') {
         const guild = interaction.guild;
         const user = interaction.user;
@@ -1152,7 +1155,6 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // الموافقة أو الرفض على طلب البرايفت وإعطاء الرول الجديد
     if (interaction.customId.startsWith('approve_makhfi_') || interaction.customId.startsWith('deny_makhfi_')) {
         const parts = interaction.customId.split('_');
         const action = parts[0];
