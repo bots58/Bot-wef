@@ -46,7 +46,8 @@ const CONFIG = {
     adminControlRole: "1558819326952345600", // رول الأونر
     ticketSupportPingRole: "1558832820732821607", 
     
-    privateRole: "1547232423522082816", // رول البرايفت
+    privateRole: "1547232423522082816", 
+    makhfiRole: "1558819288133926972",  // رول البرايفت الجديد عند الموافقة
 
     roleRequestRoom: "1558833018670424104", 
     supportLogRoom: "1558833303421849630", 
@@ -71,10 +72,6 @@ function getValidParent(guild, parentId) {
 }
 
 const summonCooldowns = new Map();
-const linkCooldowns = new Map();
-const pendingNasharEdits = new Set();
-let customNasharLinks = `discord.gg/WzwA2K3hsv`;
-
 const userStats = new Map(); 
 
 function getTodayDate() {
@@ -111,7 +108,7 @@ client.once('ready', async () => {
                 descText = "لا توجد نقاط مسجلة حتى الآن.";
             } else {
                 sortedUsers.forEach(([userId, data], index) => {
-                    descText += `- ${index + 1} <@${userId}> ⟶${data.total}\n`;
+                    descText += `- ${index + 1} <@${userId}> ⟶ ${data.total}\n`;
                 });
             }
 
@@ -172,52 +169,18 @@ client.on('messageCreate', async (message) => {
         }
     }
 
+    // روم الروابط المحدد
     if (message.channel.id === CONFIG.linkRoomTarget) {
         try { await message.delete(); } catch(e) {}
 
-        const userId = message.author.id;
-        const now = Date.now();
-        const cooldownDuration = 3 * 60 * 60 * 1000; 
-
-        if (linkCooldowns.has(userId)) {
-            const expirationTime = linkCooldowns.get(userId);
-            if (now < expirationTime) {
-                const timeLeft = expirationTime - now;
-                const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-                const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
-                
-                const timeString = `${hours}:${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-                
-                const warningMsg = await message.channel.send({ content: `${message.author} لازم تنتظر \`${timeString}\`` });
-                setTimeout(async () => {
-                    try { await warningMsg.delete(); } catch(e) {}
-                }, 5000);
-                return;
-            }
-        }
-
-        linkCooldowns.set(userId, now + cooldownDuration);
-
         try {
-            await message.author.send(`ارسل الرابط لعشرة واستلم البرايفت وقحبة تعرض لك\n\n${customNasharLinks}`);
-            
-            const successNotice = await message.channel.send({ content: `${message.author} تم إرسال الرابط لك بالخاص.` });
-            setTimeout(async () => {
-                try { await successNotice.delete(); } catch(e) {}
-            }, 5000);
+            await message.author.send(`**ارسل الرابط لعشرة واستلم البرايفت وقحبتك**\nhttps://discord.gg/6KDs2d7By`);
+        } catch (err) {}
 
-            const publicNotice = await message.channel.send({ content: `تم ارسال الرابط لك بالخاص` });
-            setTimeout(async () => {
-                try { await publicNotice.delete(); } catch(e) {}
-            }, 3000);
-
-        } catch (err) {
-            const errNotice = await message.channel.send({ content: `${message.author} يرجى فتح الخاص لتلقي الرابط!` });
-            setTimeout(async () => {
-                try { await errNotice.delete(); } catch(e) {}
-            }, 5000);
-        }
+        const publicNotice = await message.channel.send({ content: `تم ارسال الرابط لك بالخاص` });
+        setTimeout(async () => {
+            try { await publicNotice.delete(); } catch(e) {}
+        }, 3000);
         return;
     }
 
@@ -232,135 +195,6 @@ client.on('messageCreate', async (message) => {
             }, 500);
             return;
         }
-    }
-
-    if (hasAdminRole && pendingNasharEdits.has(message.author.id)) {
-        pendingNasharEdits.delete(message.author.id);
-        customNasharLinks = message.content;
-        try { await message.delete(); } catch(e) {}
-        const confirmMsg = await message.channel.send("✅ تم تحديث روابط النشر بنجاح!");
-        setTimeout(async () => {
-            try { await confirmMsg.delete(); } catch(e) {}
-        }, 4000);
-        return;
-    }
-
-    if (hasAdminRole && message.content.trim() === "تعديل نشر") {
-        try { await message.delete(); } catch(e) {}
-        pendingNasharEdits.add(message.author.id);
-        await message.author.send("اكتب الكلام الجديد وأي كلمة تكتبها تصير حق اللي تنرسل لما اكتب نشر.").catch(async () => {
-            const fallback = await message.channel.send({ content: `${message.author} اكتب الكلام الجديد وأي كلمة تكتبها تصير حق اللي تنرسل لما اكتب نشر.` });
-            setTimeout(async () => {
-                try { await fallback.delete(); } catch(e) {}
-            }, 10000);
-        });
-        return;
-    }
-
-    if (hasAdminRole && message.content.trim() === "نشر") {
-        try { await message.delete(); } catch(e) {}
-        
-        await message.channel.send(customNasharLinks);
-
-        setTimeout(async () => {
-            await message.channel.send(
-`## ازحـ،ف سىيرفر ويفات وفضىايح  وقحـ،بات وسكـ،س بالىبايو @everyone - @here
-
-## ازحـ،ف سىيرفر ويفات وفضىايح  وقحـ،بات وسكـ،س بالىبايو @everyone - @here
-
-## ازحـ،ف سىيرفر ويفات وفضىايح  وقحـ،بات وسكـ،س بالىبايو @everyone - @here
-
-## ازحـ،ف سىيرفر ويفات وفضىايح  وقحـ،بات وسكـ،س بالىبايو @everyone - @here
-
-## ازحـ،ف سىيرفر ويفات وفضىايح  وقحـ،بات وسكـ،س بالىبايو @everyone - @here`
-            );
-        }, 150);
-
-        setTimeout(async () => {
-            await message.channel.send("https://discord.gg/3wxjGdVJT");
-        }, 400);
-
-        setTimeout(async () => {
-            await message.channel.send("**الطريقة تحط الرابط بالبايو وتدخل السيرفرات الي فوق وتنسخ الكلام الطويل وتنشر وتصور وترسل لنا وبيجيك الرول وقحـ،بة تعرض لك**");
-        }, 700);
-
-        return;
-    }
-
-    if (hasAdminRole && message.content.startsWith("bc")) {
-        const args = message.content.slice(2).trim();
-        const filesToSend = [];
-
-        for (const [id, attachment] of message.attachments) {
-            try {
-                const response = await fetch(attachment.url);
-                const buffer = Buffer.from(await response.arrayBuffer());
-                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'media.png' }));
-            } catch (err) {
-                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'media.png' }));
-            }
-        }
-
-        try { await message.delete(); } catch(e) {}
-
-        if (args.length > 0 || filesToSend.length > 0) {
-            await message.guild.members.fetch();
-            let successCount = 0;
-            
-            for (const member of message.guild.members.cache.values()) {
-                if (member.user.bot) continue;
-                try {
-                    await member.send({
-                        content: args.length > 0 ? args : undefined,
-                        files: filesToSend
-                    });
-                    successCount++;
-                } catch (e) {}
-            }
-            
-            const feedback = await message.channel.send(`✅ تم إرسال البرودكاست إلى ${successCount} عضواً بنجاح.`);
-            setTimeout(async () => {
-                try { await feedback.delete(); } catch(e) {}
-            }, 5000);
-        }
-        return;
-    }
-
-    if ((message.content.startsWith("رسالة") || message.content.startsWith("رساله"))) {
-        if (!message.member.roles.cache.has(CONFIG.adminControlRole) && !hasAdminRole) {
-            try { await message.delete(); } catch(e) {}
-            const errNotice = await message.channel.send({ content: `${message.author} هذا الأمر مخصص فقط لمن يملك رول الأونرية.` });
-            setTimeout(async () => {
-                try { await errNotice.delete(); } catch(e) {}
-            }, 5000);
-            return;
-        }
-
-        const args = message.content.replace(/^(رسالة|رساله)/, "").trim();
-        const filesToSend = [];
-
-        for (const [id, attachment] of message.attachments) {
-            try {
-                const response = await fetch(attachment.url);
-                const buffer = Buffer.from(await response.arrayBuffer());
-                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'media.png' }));
-            } catch (err) {
-                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'media.png' }));
-            }
-        }
-
-        try { await message.delete(); } catch(e) {}
-
-        const textToSend = args.length > 0 ? args : "This room is for those over 18 years old";
-        const embed = new EmbedBuilder()
-            .setDescription(textToSend)
-            .setColor(0x2b2d31);
-
-        await message.channel.send({
-            embeds: [embed],
-            files: filesToSend
-        });
-        return;
     }
 
     if (message.channel.name.startsWith("ticket-") && (hasTicketSupportRole || message.member.roles.cache.has(CONFIG.supportRole) || message.member.roles.cache.has(CONFIG.adminControlRole))) {
@@ -475,20 +309,6 @@ client.on('messageCreate', async (message) => {
 
                     await logChannel.send({ embeds: [embed], components: [row] });
                     await message.react('✅').catch(() => {});
-
-                    const guideChannel = message.guild.channels.cache.get(CONFIG.supportLogRoom);
-                    if (guideChannel) {
-                        const guideMsgContent = actionType === 'add' 
-                            ? `${message.author} اكتب دليلك` 
-                            : `${message.author} اكتب دليلك لتل الشخص`;
-                        
-                        const sentGuideMsg = await guideChannel.send({ content: guideMsgContent }).catch(() => null);
-                        if (sentGuideMsg) {
-                            setTimeout(async () => {
-                                try { await sentGuideMsg.delete(); } catch(e) {}
-                            }, 15000);
-                        }
-                    }
                 }
                 return;
             }
@@ -549,7 +369,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // إرسال المحتوى كما هو لروم طلبات إنشاء الروم
+    // إرسال المحتوى لروم طلبات إنشاء الروم
     if (message.channel.name.startsWith("wef-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -598,7 +418,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // إرسال المحتوى كما هو لروم طلبات حذف الروم
+    // إرسال المحتوى لروم طلبات حذف الروم
     if (message.channel.name.startsWith("delete-room-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -676,7 +496,7 @@ client.on('messageCreate', async (message) => {
             );
 
             let msgPayload = { components: [row] };
-            let fullText = userContent ? `${userContent}\nطلبايفت من العضو: ${message.author}` : `طلبايفت من العضو: ${message.author}`;
+            let fullText = userContent ? `${userContent}\nطلب برايفت من العضو: ${message.author}` : `طلب برايفت من العضو: ${message.author}`;
             msgPayload.content = fullText;
 
             if (filesToSend.length > 0) {
@@ -730,73 +550,10 @@ client.on('messageCreate', async (message) => {
         try { await message.delete(); } catch(e) {}
         return;
     }
-
-    if ((cleanMsg === "إخفاء" || cleanMsg === "اخفا") && hasAdminRole) {
-        try { await message.delete(); } catch(e) {}
-        await message.channel.permissionOverwrites.edit("1558819050908418058", { ViewChannel: false });
-        return;
-    }
-
-    if ((cleanMsg === "إظهار" || cleanMsg === "اظهار") && hasAdminRole) {
-        try { await message.delete(); } catch(e) {}
-        await message.channel.permissionOverwrites.edit("1558819050908418058", { ViewChannel: null });
-        return;
-    }
-
-    if (message.content.startsWith("send") && hasSupportRole) {
-        const textToSend = message.content.slice(4).trim();
-        const filesToSend = [];
-
-        for (const [id, attachment] of message.attachments) {
-            try {
-                const response = await fetch(attachment.url);
-                const buffer = Buffer.from(await response.arrayBuffer());
-                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
-            } catch (err) {
-                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
-            }
-        }
-
-        try { await message.delete(); } catch(e) {}
-
-        if (textToSend || filesToSend.length > 0) {
-            await message.channel.send({
-                content: textToSend || undefined,
-                files: filesToSend
-            });
-        }
-        return;
-    }
 });
 
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
-
-    if (interaction.customId === 'my_stats_btn') {
-        const userId = interaction.user.id;
-        const stats = checkAndResetDaily(userId);
-        await interaction.reply({
-            content: `الرومات الي فكيتها اليوم ⟵ ${stats.daily}\nالرومات الي فكيتها كليا ⟵ ${stats.total}`,
-            ephemeral: true
-        });
-        return;
-    }
-
-    if (interaction.customId === 'verify_btn') {
-        const member = interaction.member;
-        try {
-            if (CONFIG.unverifiedRole && member.roles.cache.has(CONFIG.unverifiedRole)) {
-                await member.roles.remove(CONFIG.unverifiedRole);
-            }
-            if (CONFIG.verifiedRole && !member.roles.cache.has(CONFIG.verifiedRole)) {
-                await member.roles.add(CONFIG.verifiedRole);
-            }
-            await interaction.reply({ content: "تم تفعيلك بنجاح!", ephemeral: true });
-        } catch (err) {
-            await interaction.reply({ content: "تم تفعيلك بنجاح!", ephemeral: true }).catch(() => {});
-        }
-        return;
-    }
 
     if (interaction.customId === 'create_ticket_btn') {
         const guild = interaction.guild;
@@ -1053,7 +810,7 @@ client.on('interactionCreate', async (interaction) => {
 
         const existingMakhfi = guild.channels.cache.find(c => c.name === `برايفت-${user.username}` && c.type === 0);
         if (existingMakhfi) {
-            await interaction.reply({ content: "لديك روم باريفت مفتوح بالفعل.", ephemeral: true });
+            await interaction.reply({ content: "لديك روم برايفت مفتوح بالفعل.", ephemeral: true });
             return;
         }
 
@@ -1089,7 +846,6 @@ client.on('interactionCreate', async (interaction) => {
             await makhfiChannel.send(`حياك الله اكتب دليلك`);
             await interaction.reply({ content: `تم انشاء الروم: ${makhfiChannel}`, ephemeral: true });
 
-            // حذف تلقائي بعد 10 دقائق (600,000 مللي ثانية)
             setTimeout(async () => {
                 try {
                     const channelToCheck = guild.channels.cache.get(makhfiChannel.id);
@@ -1246,7 +1002,7 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // الموافقة أو الرفض على طلب البرايفت وإعطاء الرول
+    // الموافقة أو الرفض على طلب البرايفت وإعطاء الرول الجديد
     if (interaction.customId.startsWith('approve_makhfi_') || interaction.customId.startsWith('deny_makhfi_')) {
         const parts = interaction.customId.split('_');
         const action = parts[0];
@@ -1267,7 +1023,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         if (action === 'approve') {
-            const roleId = CONFIG.privateRole;
+            const roleId = CONFIG.makhfiRole;
             const role = interaction.guild.roles.cache.get(roleId);
 
             if (targetUser && role) {
@@ -1284,6 +1040,48 @@ client.on('interactionCreate', async (interaction) => {
 
             await interaction.update({ content: "تمت الموافقة وإعطاء رول البرايفت بنجاح.", components: [] });
             try { if (originalChannelId) await interaction.guild.channels.cache.get(originalChannelId)?.delete(); } catch(e) {}
+        }
+        return;
+    }
+
+    if (interaction.customId.startsWith('role_accept_') || interaction.customId.startsWith('role_deny_')) {
+        const parts = interaction.customId.split('_');
+        const actionStatus = parts[1];
+        const targetUserId = parts[2];
+        const roleId = parts[3];
+        const actionType = parts[4];
+        const supportUserId = parts[5];
+
+        const targetMember = await interaction.guild.members.fetch(targetUserId).catch(() => null);
+        const supportMember = await interaction.guild.members.fetch(supportUserId).catch(() => null);
+        const role = interaction.guild.roles.cache.get(roleId);
+
+        if (actionStatus === 'deny') {
+            try {
+                if (supportMember) {
+                    await supportMember.send(`تم رفض طلبك لـ/من رول لـ <@${targetUserId}> من قبل الإدارة.`);
+                }
+            } catch(e) {}
+            await interaction.update({ content: "تم رفض الطلب.", components: [] });
+            return;
+        }
+
+        if (actionStatus === 'accept') {
+            if (targetMember && role) {
+                try {
+                    if (actionType === 'add') {
+                        await targetMember.roles.add(role);
+                        if (targetMember) await targetMember.send(`تم قبول طلبك وتم إعطاؤك الرول بنجاح!`).catch(() => {});
+                    } else {
+                        await targetMember.roles.remove(role);
+                        if (targetMember) await targetMember.send(`تم قبول طلبك وتم سحب الرول منك.`).catch(() => {});
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+            await interaction.update({ content: "تمت الموافقة وتطبيق الإجراء بنجاح.", components: [] });
+            return;
         }
         return;
     }
