@@ -39,7 +39,7 @@ const CONFIG = {
     unverifiedRole: "1558819050908418058", // رول غير مفعل عند الدخول
     
     ticketSetupRoom: "1545847197768360000",
-    ticketCategory1: "1558830581473738772", // الكاتجوري المخصص لفتح التكتات الذي أرسلته
+    ticketCategory1: "1558830581473738772", 
     ticketCategory2: "1545853004673196172", 
     
     supportRole: "1558819326952345600", 
@@ -51,14 +51,14 @@ const CONFIG = {
     roleRequestRoom: "1558833018670424104", 
     supportLogRoom: "1558833303421849630", 
 
-    secretRoomVoiceLog: "1558828949658931290",       
-    secretApprovalChannel: "1558829128445337743",    
+    secretRoomVoiceLog: "1558828949658931290",       // كاتجوري إنشاء روم
+    secretApprovalChannel: "1558829128445337743",    // قبول/رفض إنشاء روم
 
-    deleteRoomVoiceLog: "1558829425351729212",       
-    deleteRoomRequestsChannel: "1558829580205166632", 
+    deleteRoomVoiceLog: "1558829425351729212",       // كاتجوري حذف روم
+    deleteRoomRequestsChannel: "1558829580205166632", // قبول/رفض حذف روم
 
-    makhfiCategory: "1558827346172190810",           
-    makhfiApprovalChannel: "1558828242389962875",     
+    makhfiCategory: "1558827346172190810",           // كاتجوري طلب مخفي
+    makhfiApprovalChannel: "1558828242389962875",     // قبول/رفض طلب مخفي
 
     topChannelId: "1547705159830863912",
     linkRoomTarget: "1558834241549242469"
@@ -111,59 +111,7 @@ client.once('ready', async () => {
                 descText = "لا توجد نقاط مسجلة حتى الآن.";
             } else {
                 sortedUsers.forEach(([userId, data], index) => {
-                    descText += `- ${index + 1} <@${userId}> ⟶${data.total}\n`;
-                });
-            }
-
-            const embed = new EmbedBuilder()
-                .setDescription(descText)
-                .setColor(0x2f3136);
-
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('my_stats_btn')
-                    .setLabel('my stats')
-                    .setStyle(ButtonStyle.Secondary)
-            );
-
-            const messages = await channel.messages.fetch({ limit: 10 }).catch(() => null);
-            const botMsg = messages ? messages.find(m => m.author.id === client.user.id && m.components.length > 0) : null;
-
-            if (botMsg) {
-                await botMsg.edit({ embeds: [embed], components: [row] }).catch(() => {});
-            } else {
-                await channel.send({ embeds: [embed], components: [row] });
-            }
-        } catch (err) {
-            console.error("Error in top interval update:", err);
-        }
-    }, 30000);
-});
-
-client.on('guildMemberAdd', async (member) => {
-    try {
-        if (CONFIG.unverifiedRole) {
-            await member.roles.add(CONFIG.unverifiedRole);
-        }
-    } catch (err) {
-        console.error("Error handling guildMemberAdd:", err);
-    }
-});
-
-client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
-
-    const isOwner = message.author.id === message.guild.ownerId;
-    const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
-    const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
-    const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) || hasAdminRole;
-
-    const linkRegex = /(https?:\/\/[^\s]+|discord\.gg\/[^\s]+|discord\.com\/invite\/[^\s]+)/i;
-    if (linkRegex.test(message.content)) {
-        if (!message.member.roles.cache.has(CONFIG.adminControlRole) && !hasAdminRole && !isOwner) {
-            try {
-                await message.delete();
-                const warningMsg = await message.channel.send({ content: `${message.author} ممنوع إرسال الروابط هنا!` });
+                    descText += `- ${index + 1} <@${userId}> ⟶ ${data.total}\n`; }); }  const embed = new EmbedBuilder() .setDescription(descText) .setColor(0x2f3136);  const row = new ActionRowBuilder().addComponents( new ButtonBuilder() .setCustomId('my_stats_btn') .setLabel('my stats') .setStyle(ButtonStyle.Secondary) );  const messages = await channel.messages.fetch({ limit: 10 }).catch(() => null); const botMsg = messages ? messages.find(m => m.author.id === client.user.id && m.components.length > 0) : null;  if (botMsg) { await botMsg.edit({ embeds: [embed], components: [row] }).catch(() => {}); } else { await channel.send({ embeds: [embed], components: [row] }); } } catch (err) { console.error("Error in top interval update:", err); } }, 30000); });  client.on('guildMemberAdd', async (member) => { try { if (CONFIG.unverifiedRole) { await member.roles.add(CONFIG.unverifiedRole); } } catch (err) { console.error("Error handling guildMemberAdd:", err); } });  client.on('messageCreate', async (message) => { if (message.author.bot) return;  const isOwner = message.author.id === message.guild.ownerId; const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) \vert{}\vert{} message.member.roles.cache.has(CONFIG.adminControlRole); const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) \vert{}\vert{} hasAdminRole; const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) \vert{}\vert{} hasAdminRole;  const linkRegex = /(https?:\/\/[^\s]+\vert{}discord\.gg\/[^\s]+\vert{}discord\.com\/invite\/[^\s]+)/i; if (linkRegex.test(message.content)) { if (!message.member.roles.cache.has(CONFIG.adminControlRole) && !hasAdminRole && !isOwner) { try { await message.delete(); const warningMsg = await message.channel.send({ content: `${message.author} ممنوع إرسال الروابط هنا!` });
                 setTimeout(async () => {
                     try { await warningMsg.delete(); } catch(e) {}
                 }, 4000);
@@ -187,9 +135,7 @@ client.on('messageCreate', async (message) => {
                 const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
                 const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
                 
-                const timeString = `${hours}:${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-                
-                const warningMsg = await message.channel.send({ content: `${message.author} لازم تنتظر \`${timeString}\`` });
+                const timeString = `${hours}:${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;  const warningMsg = await message.channel.send({ content: `${message.author} لازم تنتظر \`${timeString}\`` });
                 setTimeout(async () => {
                     try { await warningMsg.delete(); } catch(e) {}
                 }, 5000);
@@ -549,6 +495,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
+    // إرسال المحتوى كما هو لروم طلبات إنشاء الروم
     if (message.channel.name.startsWith("wef-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -576,11 +523,15 @@ client.on('messageCreate', async (message) => {
                     .setStyle(ButtonStyle.Secondary)
             );
 
-            await requestChannel.send({
-                content: `${userContent}\nبواسطة صاحب الروم: ${message.author}`,
-                files: filesToSend,
-                components: [row]
-            });
+            let msgPayload = { components: [row] };
+            let fullText = userContent ? `${userContent}\nبواسطة صاحب الروم: ${message.author}` : `بواسطة صاحب الروم: ${message.author}`;
+            msgPayload.content = fullText;
+
+            if (filesToSend.length > 0) {
+                msgPayload.files = filesToSend;
+            }
+
+            await requestChannel.send(msgPayload);
         }
 
         await message.reply({ content: `تم إرسال طلبك للإدارة، وإذا تمت الموافقة عليه بينشأ الروم.` });
@@ -588,11 +539,12 @@ client.on('messageCreate', async (message) => {
             try {
                 await message.channel.delete();
             } catch(e) {}
-        }, 5000);
+        }, 3000);
 
         return;
     }
 
+    // إرسال المحتوى كما هو لروم طلبات حذف الروم
     if (message.channel.name.startsWith("delete-room-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -620,11 +572,15 @@ client.on('messageCreate', async (message) => {
                     .setStyle(ButtonStyle.Secondary)
             );
 
-            await requestChannel.send({
-                content: `${userContent}\nمقدم الطلب: ${message.author}`,
-                files: filesToSend,
-                components: [row]
-            });
+            let msgPayload = { components: [row] };
+            let fullText = userContent ? `${userContent}\nمقدم الطلب: ${message.author}` : `مقدم الطلب: ${message.author}`;
+            msgPayload.content = fullText;
+
+            if (filesToSend.length > 0) {
+                msgPayload.files = filesToSend;
+            }
+
+            await requestChannel.send(msgPayload);
         }
 
         await message.reply({ content: `تم إرسال طلبك للإدارة، وإذا تمت الموافقة عليه بينحذف.` });
@@ -632,7 +588,7 @@ client.on('messageCreate', async (message) => {
             try {
                 await message.channel.delete();
             } catch(e) {}
-        }, 5000);
+        }, 3000);
 
         return;
     }
@@ -783,7 +739,6 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // زر فك تكت
     if (interaction.customId === 'create_ticket_btn') {
         const guild = interaction.guild;
         const user = interaction.user;
@@ -859,12 +814,11 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // زر استدعا (يخص العضو صاحب التكت مع كولداون 3 دقائق)
     if (interaction.customId.startsWith('ticket_summon_owner_')) {
         const userId = interaction.user.id;
         const channelId = interaction.channel.id;
         const now = Date.now();
-        const cooldownTime = 3 * 60 * 1000; // 3 دقائق
+        const cooldownTime = 3 * 60 * 1000;
 
         if (summonCooldowns.has(channelId)) {
             const expirationTime = summonCooldowns.get(channelId);
@@ -892,7 +846,6 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // زر استدعا العضو (يخص السبورت لإرسال DM لصاحب التكت)
     if (interaction.customId.startsWith('ticket_summon_member_')) {
         const member = interaction.member;
 
@@ -916,48 +869,7 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    if (interaction.customId.startsWith('role_accept_') || interaction.customId.startsWith('role_deny_')) {
-        const parts = interaction.customId.split('_');
-        const actionStatus = parts[1];
-        const targetUserId = parts[2];
-        const roleId = parts[3];
-        const actionType = parts[4];
-        const supportUserId = parts[5];
-
-        const targetMember = await interaction.guild.members.fetch(targetUserId).catch(() => null);
-        const supportMember = await interaction.guild.members.fetch(supportUserId).catch(() => null);
-        const role = interaction.guild.roles.cache.get(roleId);
-
-        if (actionStatus === 'deny') {
-            try {
-                if (supportMember) {
-                    await supportMember.send(`تم رفض طلبك لتل/إعطاء رول لـ <@${targetUserId}> من قبل الإدارة.`);
-                }
-            } catch(e) {}
-            await interaction.update({ content: "تم رفض الطلب.", components: [] });
-            return;
-        }
-
-        if (actionStatus === 'accept') {
-            if (targetMember && role) {
-                try {
-                    if (actionType === 'add') {
-                        await targetMember.roles.add(role);
-                        if (targetMember) await targetMember.send(`تم قبول طلبك وتم إعطاؤك الرول بنجاح!`).catch(() => {});
-                    } else {
-                        await targetMember.roles.remove(role);
-                        if (targetMember) await targetMember.send(`تم قبول طلبك وتم سحب الرول منك.`).catch(() => {});
-                    }
-                } catch (err) {
-                    console.error(err);
-                }
-            }
-            await interaction.update({ content: "تمت الموافقة وتطبيق الإجراء بنجاح.", components: [] });
-            return;
-        }
-        return;
-    }
-
+    // انشاء روم ويف
     if (interaction.customId === 'open_wef_voice') {
         const guild = interaction.guild;
         const user = interaction.user;
@@ -985,16 +897,8 @@ client.on('interactionCreate', async (interaction) => {
                     ]
                 },
                 {
-                    id: CONFIG.adminControlRole,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                },
-                {
                     id: CONFIG.supportRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                },
-                {
-                    id: CONFIG.privateRole,
-                    deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 }
             ];
 
@@ -1005,9 +909,10 @@ client.on('interactionCreate', async (interaction) => {
                 permissionOverwrites: wefOverwrites
             });
 
-            await wefChannel.send(`أرسل صورك ودليلك لإنشاء الروم <@&${CONFIG.adminControlRole}> <@${user.id}>`);
+            await wefChannel.send(`ارسل صورك والمقاطع واسم الروم\nوبيجينا طالب في حال وافقنا بينفك الروم`);
             await interaction.reply({ content: `تم إنشاء روم الطلب الخاص بك: ${wefChannel}`, ephemeral: true });
 
+            // حذف تلقائي بعد 10 دقائق (600,000 مللي ثانية)
             setTimeout(async () => {
                 try {
                     const channelToCheck = guild.channels.cache.get(wefChannel.id);
@@ -1024,6 +929,7 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
+    // فتح روم طلب حذف روم
     if (interaction.customId === 'open_delete_voice') {
         const guild = interaction.guild;
         const user = interaction.user;
@@ -1051,16 +957,8 @@ client.on('interactionCreate', async (interaction) => {
                     ]
                 },
                 {
-                    id: CONFIG.adminControlRole,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                },
-                {
                     id: CONFIG.supportRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-                },
-                {
-                    id: CONFIG.privateRole,
-                    deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 }
             ];
 
@@ -1071,9 +969,10 @@ client.on('interactionCreate', async (interaction) => {
                 permissionOverwrites: delOverwrites
             });
 
-            await delChannel.send(`أرسل صورك ودليلك لحذف الروم <@&${CONFIG.adminControlRole}> <@${user.id}>`);
+            await delChannel.send(`حياك الله اكتب دليلك لحذف الروم - مقاطع او كتابه وبينحذف`);
             await interaction.reply({ content: `تم إنشاء روم طلب الحذف: ${delChannel}`, ephemeral: true });
 
+            // حذف تلقائي بعد 10 دقائق (600,000 مللي ثانية)
             setTimeout(async () => {
                 try {
                     const channelToCheck = guild.channels.cache.get(delChannel.id);
