@@ -111,7 +111,59 @@ client.once('ready', async () => {
                 descText = "لا توجد نقاط مسجلة حتى الآن.";
             } else {
                 sortedUsers.forEach(([userId, data], index) => {
-                    descText += `- ${index + 1} <@${userId}> ⟶ ${data.total}\n`; }); }  const embed = new EmbedBuilder() .setDescription(descText) .setColor(0x2f3136);  const row = new ActionRowBuilder().addComponents( new ButtonBuilder() .setCustomId('my_stats_btn') .setLabel('my stats') .setStyle(ButtonStyle.Secondary) );  const messages = await channel.messages.fetch({ limit: 10 }).catch(() => null); const botMsg = messages ? messages.find(m => m.author.id === client.user.id && m.components.length > 0) : null;  if (botMsg) { await botMsg.edit({ embeds: [embed], components: [row] }).catch(() => {}); } else { await channel.send({ embeds: [embed], components: [row] }); } } catch (err) { console.error("Error in top interval update:", err); } }, 30000); });  client.on('guildMemberAdd', async (member) => { try { if (CONFIG.unverifiedRole) { await member.roles.add(CONFIG.unverifiedRole); } } catch (err) { console.error("Error handling guildMemberAdd:", err); } });  client.on('messageCreate', async (message) => { if (message.author.bot) return;  const isOwner = message.author.id === message.guild.ownerId; const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) \vert{}\vert{} message.member.roles.cache.has(CONFIG.adminControlRole); const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) \vert{}\vert{} hasAdminRole; const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) \vert{}\vert{} hasAdminRole;  const linkRegex = /(https?:\/\/[^\s]+\vert{}discord\.gg\/[^\s]+\vert{}discord\.com\/invite\/[^\s]+)/i; if (linkRegex.test(message.content)) { if (!message.member.roles.cache.has(CONFIG.adminControlRole) && !hasAdminRole && !isOwner) { try { await message.delete(); const warningMsg = await message.channel.send({ content: `${message.author} ممنوع إرسال الروابط هنا!` });
+                    descText += `- ${index + 1} <@${userId}> ⟶${data.total}\n`;
+                });
+            }
+
+            const embed = new EmbedBuilder()
+                .setDescription(descText)
+                .setColor(0x2f3136);
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('my_stats_btn')
+                    .setLabel('my stats')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+            const messages = await channel.messages.fetch({ limit: 10 }).catch(() => null);
+            const botMsg = messages ? messages.find(m => m.author.id === client.user.id && m.components.length > 0) : null;
+
+            if (botMsg) {
+                await botMsg.edit({ embeds: [embed], components: [row] }).catch(() => {});
+            } else {
+                await channel.send({ embeds: [embed], components: [row] });
+            }
+        } catch (err) {
+            console.error("Error in top interval update:", err);
+        }
+    }, 30000);
+});
+
+client.on('guildMemberAdd', async (member) => {
+    try {
+        if (CONFIG.unverifiedRole) {
+            await member.roles.add(CONFIG.unverifiedRole);
+        }
+    } catch (err) {
+        console.error("Error handling guildMemberAdd:", err);
+    }
+});
+
+client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+
+    const isOwner = message.author.id === message.guild.ownerId;
+    const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
+    const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
+    const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) || hasAdminRole;
+
+    const linkRegex = /(https?:\/\/[^\s]+|discord\.gg\/[^\s]+|discord\.com\/invite\/[^\s]+)/i;
+    if (linkRegex.test(message.content)) {
+        if (!message.member.roles.cache.has(CONFIG.adminControlRole) && !hasAdminRole && !isOwner) {
+            try {
+                await message.delete();
+                const warningMsg = await message.channel.send({ content: `${message.author} ممنوع إرسال الروابط هنا!` });
                 setTimeout(async () => {
                     try { await warningMsg.delete(); } catch(e) {}
                 }, 4000);
@@ -135,7 +187,9 @@ client.once('ready', async () => {
                 const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
                 const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
                 
-                const timeString = `${hours}:${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;  const warningMsg = await message.channel.send({ content: `${message.author} لازم تنتظر \`${timeString}\`` });
+                const timeString = `${hours}:${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                
+                const warningMsg = await message.channel.send({ content: `${message.author} لازم تنتظر \`${timeString}\`` });
                 setTimeout(async () => {
                     try { await warningMsg.delete(); } catch(e) {}
                 }, 5000);
