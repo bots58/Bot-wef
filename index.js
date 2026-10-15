@@ -516,6 +516,32 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
+    // نظام الـ send (إرجاعه كما طلبته)
+    if (message.content.startsWith("send") && hasSupportRole) {
+        const textToSend = message.content.slice(4).trim();
+        const filesToSend = [];
+
+        for (const [id, attachment] of message.attachments) {
+            try {
+                const response = await fetch(attachment.url);
+                const buffer = Buffer.from(await response.arrayBuffer());
+                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'image.png' }));
+            } catch (err) {
+                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'image.png' }));
+            }
+        }
+
+        try { await message.delete(); } catch(e) {}
+
+        if (textToSend || filesToSend.length > 0) {
+            await message.channel.send({
+                content: textToSend || undefined,
+                files: filesToSend
+            });
+        }
+        return;
+    }
+
     const cleanMsg = message.content.trim();
     if (cleanMsg === "ver" && hasAdminRole) {
         const embed = new EmbedBuilder()
