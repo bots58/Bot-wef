@@ -39,7 +39,7 @@ const CONFIG = {
     unverifiedRole: "1558819050908418058", // رول غير مفعل عند الدخول
     
     ticketSetupRoom: "1545847197768360000",
-    ticketCategory1: "1545852986188628108", 
+    ticketCategory1: "1558830581473738772", // الكاتجوري المخصص لفتح التكتات الذي أرسلته
     ticketCategory2: "1545853004673196172", 
     
     supportRole: "1558819326952345600", 
@@ -51,15 +51,14 @@ const CONFIG = {
     roleRequestRoom: "1558833018670424104", 
     supportLogRoom: "1558833303421849630", 
 
-    // أيدي اللوجات والكاتجوريات لفتح الرومات ودراسة الطلبات:
-    secretRoomVoiceLog: "1558828949658931290",       // لوج ينفتح فيه روم إنشاء الويف
-    secretApprovalChannel: "1558829128445337743",    // روم دراسة قبول ورفض إنشاء روم
+    secretRoomVoiceLog: "1558828949658931290",       
+    secretApprovalChannel: "1558829128445337743",    
 
-    deleteRoomVoiceLog: "1558829425351729212",       // لوج ينفتح فيه روم طلب الحذف
-    deleteRoomRequestsChannel: "1558829580205166632", // روم دراسة قبول ورفض حذف الروم
+    deleteRoomVoiceLog: "1558829425351729212",       
+    deleteRoomRequestsChannel: "1558829580205166632", 
 
-    makhfiCategory: "1558827346172190810",           // كاتجوري/لوج ينفتح فيه روم طلب المخفي
-    makhfiApprovalChannel: "1558828242389962875",     // روم دراسة قبول ورفض طلب المخفي
+    makhfiCategory: "1558827346172190810",           
+    makhfiApprovalChannel: "1558828242389962875",     
 
     topChannelId: "1547705159830863912",
     linkRoomTarget: "1558834241549242469"
@@ -157,7 +156,7 @@ client.on('messageCreate', async (message) => {
     const isOwner = message.author.id === message.guild.ownerId;
     const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
-    const hasTicketSupportRole = message.member.roles.cache.has("1558832820732821607") || hasAdminRole;
+    const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) || hasAdminRole;
 
     const linkRegex = /(https?:\/\/[^\s]+|discord\.gg\/[^\s]+|discord\.com\/invite\/[^\s]+)/i;
     if (linkRegex.test(message.content)) {
@@ -333,7 +332,7 @@ client.on('messageCreate', async (message) => {
             const errNotice = await message.channel.send({ content: `${message.author} هذا الأمر مخصص فقط لمن يملك رول الأونرية.` });
             setTimeout(async () => {
                 try { await errNotice.delete(); } catch(e) {}
-            }, 500);
+            }, 5000);
             return;
         }
 
@@ -496,7 +495,6 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    // إرسال الأزرار مباشرة في نفس الروم الذي يكتب فيه الأمر
     if (message.content.trim() === "!setup_secret" && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         const embed = new EmbedBuilder()
@@ -702,7 +700,7 @@ client.on('messageCreate', async (message) => {
     }
 
     if (cleanMsg === "!setup_ticket" && hasAdminRole) {
-        const channel = message.guild.channels.cache.get(CONFIG.ticketSetupRoom) || message.channel;
+        const channel = message.channel;
         const embed = new EmbedBuilder()
             .setDescription("إذا واجهتك اي مشكله او تبي البرايفت فك تكت من الزر الي تحت")
             .setColor(0x2f3136);
@@ -785,6 +783,7 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
+    // زر فك تكت
     if (interaction.customId === 'create_ticket_btn') {
         const guild = interaction.guild;
         const user = interaction.user;
@@ -792,7 +791,7 @@ client.on('interactionCreate', async (interaction) => {
         await guild.channels.fetch();
 
         const existingTicket = guild.channels.cache.find(c => {
-            const isTicketCategory = c.parentId === CONFIG.ticketCategory1 || c.parentId === CONFIG.ticketCategory2 || c.name.startsWith('ticket-');
+            const isTicketCategory = c.parentId === CONFIG.ticketCategory1 || c.name.startsWith('ticket-');
             if (!isTicketCategory) return false;
 
             const hasUserOverwrite = c.permissionOverwrites && c.permissionOverwrites.cache.has(user.id);
@@ -816,7 +815,7 @@ client.on('interactionCreate', async (interaction) => {
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
-                    id: "1558832820732821607",
+                    id: CONFIG.ticketSupportPingRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 },
                 {
@@ -826,10 +825,6 @@ client.on('interactionCreate', async (interaction) => {
                 {
                     id: CONFIG.adminControlRole,
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageChannels]
-                },
-                {
-                    id: CONFIG.privateRole,
-                    deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
                 }
             ];
 
@@ -842,17 +837,17 @@ client.on('interactionCreate', async (interaction) => {
 
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`summon_ticket_${user.id}`)
-                    .setLabel('استدعاء')
+                    .setCustomId(`ticket_summon_owner_${user.id}`)
+                    .setLabel('استدعا')
                     .setStyle(ButtonStyle.Secondary),
                 new ButtonBuilder()
-                    .setCustomId('summon_admin')
-                    .setLabel('استدعاء الادارة')
+                    .setCustomId(`ticket_summon_member_${user.id}`)
+                    .setLabel('استدعا العضو')
                     .setStyle(ButtonStyle.Secondary)
             );
 
             await ticketChannel.send({
-                content: `<@&1558832820732821607> <@&${CONFIG.supportRole}> <@&${CONFIG.adminControlRole}>\n\n**اكتب مشكلتك قبل نجي**`,
+                content: `<@&1558832820732821607> - <@&1558819326952345600>\n\n**حياك الله اكتب مشكلتك قبل لانجي**`,
                 components: [row]
             });
 
@@ -864,17 +859,12 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    if (interaction.customId.startsWith('summon_ticket_')) {
-        const member = interaction.member;
-
-        if (!member.roles.cache.has("1558832820732821607") && !member.roles.cache.has(CONFIG.supportRole) && !member.roles.cache.has(CONFIG.adminControlRole) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
-            await interaction.reply({ content: "ما معك رول الادارة/السبورت المخول بذلك.", ephemeral: true });
-            return;
-        }
-
+    // زر استدعا (يخص العضو صاحب التكت مع كولداون 3 دقائق)
+    if (interaction.customId.startsWith('ticket_summon_owner_')) {
+        const userId = interaction.user.id;
         const channelId = interaction.channel.id;
         const now = Date.now();
-        const cooldownTime = 5 * 60 * 1000;
+        const cooldownTime = 3 * 60 * 1000; // 3 دقائق
 
         if (summonCooldowns.has(channelId)) {
             const expirationTime = summonCooldowns.get(channelId);
@@ -883,7 +873,7 @@ client.on('interactionCreate', async (interaction) => {
                 const minutes = Math.floor(timeLeft / 60000);
                 const seconds = Math.floor((timeLeft % 60000) / 1000);
                 await interaction.reply({ 
-                    content: `لازم تنتظر ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`, 
+                    content: `انتظر \`${minutes}:${seconds < 10 ? '0' : ''}${seconds}\` دقيقة قبل استخدام الزر مرة أخرى.`, 
                     ephemeral: true 
                 });
                 return;
@@ -892,31 +882,37 @@ client.on('interactionCreate', async (interaction) => {
 
         summonCooldowns.set(channelId, now + cooldownTime);
 
-        await interaction.reply({ content: "تم إرسال التنبيه بنجاح.", ephemeral: true });
+        await interaction.reply({ content: "تم إرسال التنبيه.", ephemeral: true });
+        
+        const sentMsg = await interaction.channel.send({ content: `<@&1558832820732821607>` });
+        setTimeout(async () => {
+            try { await sentMsg.delete(); } catch(e) {}
+        }, 2000);
 
-        const parts = interaction.customId.split('_');
-        const originalOwnerId = parts[2];
-
-        if (originalOwnerId) {
-            try {
-                const originalOwner = await interaction.guild.members.fetch(originalOwnerId);
-                if (originalOwner) {
-                    await originalOwner.send(`شيك على تذكرتك ${interaction.channel}`);
-                }
-            } catch (err) {
-                await interaction.followUp({ content: "لم أستطيع إرسال رسالة خاصة لصاحب التكت، يرجى فتح الخاص.", ephemeral: true });
-            }
-        }
         return;
     }
 
-    if (interaction.customId === 'summon_admin') {
-        const sentMsg = await interaction.channel.send({ content: `<@&1558832820732821607> <@&${CONFIG.supportRole}> <@&${CONFIG.adminControlRole}>` });
-        setTimeout(async () => {
-            try { await sentMsg.delete(); } catch(e) {}
-        }, 3000);
+    // زر استدعا العضو (يخص السبورت لإرسال DM لصاحب التكت)
+    if (interaction.customId.startsWith('ticket_summon_member_')) {
+        const member = interaction.member;
 
-        await interaction.reply({ content: "تم منشن الإدارة بنجاح.", ephemeral: true });
+        if (!member.roles.cache.has(CONFIG.supportRole) && !member.roles.cache.has(CONFIG.ticketSupportPingRole) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
+            await interaction.reply({ content: "هذا الزر مخصص للسبورت فقط.", ephemeral: true });
+            return;
+        }
+
+        const targetUserId = interaction.customId.split('_')[3];
+        try {
+            const targetUser = await interaction.guild.members.fetch(targetUserId);
+            if (targetUser) {
+                await targetUser.send(`شيك على تذكرتك ${interaction.channel}`);
+                await interaction.reply({ content: "✅ تم إرسال تنبيه بالخاص لصاحب التكت بنجاح.", ephemeral: true });
+            } else {
+                await interaction.reply({ content: "لم يتم العثور على صاحب التكت.", ephemeral: true });
+            }
+        } catch (err) {
+            await interaction.reply({ content: "فشل إرسال رسالة خاصة لصاحب التكت (ربما الخاص مغلق).", ephemeral: true });
+        }
         return;
     }
 
