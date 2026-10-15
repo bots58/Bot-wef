@@ -43,11 +43,11 @@ const CONFIG = {
     ticketCategory2: "1545853004673196172", 
     
     supportRole: "1558819326952345600", 
-    adminControlRole: "1558819326952345600", // رول الأونر
+    adminControlRole: "1558819326952345600", // رول التحكم/الأونرية المحدد
     ticketSupportPingRole: "1558832820732821607", 
     
     privateRole: "1547232423522082816", 
-    makhfiRole: "1558819288133926972",  // رول البرايفت الجديد عند الموافقة
+    makhfiRole: "1558819288133926972",  // رول البرايفت عند الموافقة
 
     roleRequestRoom: "1558833018670424104", 
     supportLogRoom: "1558833303421849630", 
@@ -72,6 +72,8 @@ function getValidParent(guild, parentId) {
 }
 
 const summonCooldowns = new Map();
+const pendingNasharEdits = new Set();
+let customNasharLinks = `discord.gg/WzwA2K3hsv`;
 const userStats = new Map(); 
 
 function getTodayDate() {
@@ -151,13 +153,14 @@ client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
     const isOwner = message.author.id === message.guild.ownerId;
-    const hasAdminRole = message.member.permissions.has(PermissionFlagsBits.Administrator) || message.member.roles.cache.has(CONFIG.adminControlRole);
+    const hasAdminRole = message.member.roles.cache.has(CONFIG.adminControlRole) || message.member.permissions.has(PermissionFlagsBits.Administrator) || isOwner;
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
     const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) || hasAdminRole;
 
+    // حماية الروابط العامة
     const linkRegex = /(https?:\/\/[^\s]+|discord\.gg\/[^\s]+|discord\.com\/invite\/[^\s]+)/i;
     if (linkRegex.test(message.content)) {
-        if (!message.member.roles.cache.has(CONFIG.adminControlRole) && !hasAdminRole && !isOwner) {
+        if (!hasAdminRole) {
             try {
                 await message.delete();
                 const warningMsg = await message.channel.send({ content: `${message.author} ممنوع إرسال الروابط هنا!` });
@@ -184,9 +187,10 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
+    // أمر اغلاق الرومات
     const msgContentTrimmed = message.content.trim();
     if (msgContentTrimmed === "اغلاق" || msgContentTrimmed === "إغلاق") {
-        if (message.member.roles.cache.has(CONFIG.adminControlRole) || hasAdminRole || message.member.roles.cache.has(CONFIG.supportRole)) {
+        if (hasSupportRole) {
             try { await message.delete(); } catch(e) {}
             setTimeout(async () => {
                 try {
@@ -197,20 +201,139 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    if (message.channel.name.startsWith("ticket-") && (hasTicketSupportRole || message.member.roles.cache.has(CONFIG.supportRole) || message.member.roles.cache.has(CONFIG.adminControlRole))) {
-        const msgContent = message.content.trim();
-        const closeKeywords = ["اغلاق", "إغلاق", "آغلاق", "أغلاق"];
-        if (closeKeywords.includes(msgContent)) {
-            try { await message.delete(); } catch(e) {}
-            setTimeout(async () => {
-                try {
-                    await message.channel.delete();
-                } catch(e) {}
-            }, 500);
-            return;
-        }
+    // تعديل وتطبيق أمر النشر (حصري لرول الأدمن)
+    if (hasAdminRole && pendingNasharEdits.has(message.author.id)) {
+        pendingNasharEdits.delete(message.author.id);
+        customNasharLinks = message.content;
+        try { await message.delete(); } catch(e) {}
+        const confirmMsg = await message.channel.send("✅ تم تحديث روابط النشر بنجاح!");
+        setTimeout(async () => {
+            try { await confirmMsg.delete(); } catch(e) {}
+        }, 4000);
+        return;
     }
 
+    if (hasAdminRole && message.content.trim() === "تعديل نشر") {
+        try { await message.delete(); } catch(e) {}
+        pendingNasharEdits.add(message.author.id);
+        await message.author.send("اكتب الكلام الجديد وأي كلمة تكتبها تصير حق اللي تنرسل لما اكتب نشر.").catch(async () => {
+            const fallback = await message.channel.send({ content: `${message.author} اكتب الكلام الجديد وأي كلمة تكتبها تصير حق اللي تنرسل لما اكتب نشر.` });
+            setTimeout(async () => {
+                try { await fallback.delete(); } catch(e) {}
+            }, 10000);
+        });
+        return;
+    }
+
+    if (hasAdminRole && message.content.trim() === "نشر") {
+        try { await message.delete(); } catch(e) {}
+        
+        await message.channel.send(customNasharLinks);
+
+        setTimeout(async () => {
+            await message.channel.send(
+`## ازحـ،ف سىيرفر ويفات وفضىايح  وقحـ،بات وسكـ،س بالىبايو @everyone - @here
+
+## ازحـ،ف سىيرفر ويفات وفضىايح  وقحـ،بات وسكـ،س بالىبايو @everyone - @here
+
+## ازحـ،ف سىيرفر ويفات وفضىايح  وقحـ،بات وسكـ،س بالىبايو @everyone - @here
+
+## ازحـ،ف سىيرفر ويفات وفضىايح  وقحـ،بات وسكـ،س بالىبايو @everyone - @here
+
+## ازحـ،ف سىيرفر ويفات وفضىايح  وقحـ،بات وسكـ،س بالىبايو @everyone - @here`
+            );
+        }, 150);
+
+        setTimeout(async () => {
+            await message.channel.send("https://discord.gg/3wxjGdVJT");
+        }, 400);
+
+        setTimeout(async () => {
+            await message.channel.send("**الطريقة تحط الرابط بالبايو وتدخل السيرفرات الي فوق وتنسخ الكلام الطويل وتنشر وتصور وترسل لنا وبيجيك الرول وقحـ،بة تعرض لك**");
+        }, 700);
+
+        return;
+    }
+
+    // أمر البرودكاست bc (حصري لرول الأدمن)
+    if (hasAdminRole && message.content.startsWith("bc")) {
+        const args = message.content.slice(2).trim();
+        const filesToSend = [];
+
+        for (const [id, attachment] of message.attachments) {
+            try {
+                const response = await fetch(attachment.url);
+                const buffer = Buffer.from(await response.arrayBuffer());
+                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'media.png' }));
+            } catch (err) {
+                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'media.png' }));
+            }
+        }
+
+        try { await message.delete(); } catch(e) {}
+
+        if (args.length > 0 || filesToSend.length > 0) {
+            await message.guild.members.fetch();
+            let successCount = 0;
+            
+            for (const member of message.guild.members.cache.values()) {
+                if (member.user.bot) continue;
+                try {
+                    await member.send({
+                        content: args.length > 0 ? args : undefined,
+                        files: filesToSend
+                    });
+                    successCount++;
+                } catch (e) {}
+            }
+            
+            const feedback = await message.channel.send(`✅ تم إرسال البرودكاست إلى ${successCount} عضواً بنجاح.`);
+            setTimeout(async () => {
+                try { await feedback.delete(); } catch(e) {}
+            }, 5000);
+        }
+        return;
+    }
+
+    // أمر رسالة (المطلوب مع الإمبيد الداكن) - (حصري لرول الأدمن)
+    if ((message.content.startsWith("رسالة") || message.content.startsWith("رساله"))) {
+        if (!hasAdminRole) {
+            try { await message.delete(); } catch(e) {}
+            const errNotice = await message.channel.send({ content: `${message.author} هذا الأمر مخصص فقط لمن يملك رول التحكم.` });
+            setTimeout(async () => {
+                try { await errNotice.delete(); } catch(e) {}
+            }, 5000);
+            return;
+        }
+
+        const args = message.content.replace(/^(رسالة|رساله)/, "").trim();
+        const filesToSend = [];
+
+        for (const [id, attachment] of message.attachments) {
+            try {
+                const response = await fetch(attachment.url);
+                const buffer = Buffer.from(await response.arrayBuffer());
+                filesToSend.push(new AttachmentBuilder(buffer, { name: attachment.name || 'media.png' }));
+            } catch (err) {
+                filesToSend.push(new AttachmentBuilder(attachment.url, { name: attachment.name || 'media.png' }));
+            }
+        }
+
+        try { await message.delete(); } catch(e) {}
+
+        const textToSend = args.length > 0 ? args : "This room is for those over 18 years old";
+        const embed = new EmbedBuilder()
+            .setDescription(textToSend)
+            .setColor(0x2b2d31);
+
+        await message.channel.send({
+            embeds: [embed],
+            files: filesToSend
+        });
+        return;
+    }
+
+    // أوامر قفل وفتح ومسح (حصري لرول الأدمن)
     if (message.content.trim() === "قفل" && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         await message.channel.permissionOverwrites.edit(message.guild.id, { SendMessages: false });
@@ -246,7 +369,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // نظام الرولات الذكي بالبحث الجزئي
+    // نظام طلب رول (مخصص للسبورت)
     if (hasSupportRole && message.content.startsWith("رول")) {
         let targetMember = null;
         let roleSearchText = "";
@@ -315,6 +438,7 @@ client.on('messageCreate', async (message) => {
         }
     }
 
+    // إعدادات اللوحات (حصري لرول الأدمن)
     if (message.content.trim() === "!setup_secret" && hasAdminRole) {
         try { await message.delete(); } catch(e) {}
         const embed = new EmbedBuilder()
@@ -369,7 +493,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // إرسال المحتوى لروم طلبات إنشاء الروم
+    // طلبات إنشاء الروم
     if (message.channel.name.startsWith("wef-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -418,7 +542,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // إرسال المحتوى لروم طلبات حذف الروم
+    // طلبات حذف الروم
     if (message.channel.name.startsWith("delete-room-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -467,7 +591,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // إرسال طلب البرايفت لروم الموافقات
+    // طلبات البرايفت
     if (message.channel.name.startsWith("برايفت-")) {
         const userContent = message.content.trim();
         const filesToSend = [];
@@ -516,7 +640,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // نظام الـ send (إرجاعه كما طلبته)
+    // أمر send
     if (message.content.startsWith("send") && hasSupportRole) {
         const textToSend = message.content.slice(4).trim();
         const filesToSend = [];
