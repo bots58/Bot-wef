@@ -166,7 +166,8 @@ client.on('guildMemberAdd', async (member) => {
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
-    const isOwner = message.author.id === message.guild.ownerId;
+    const isOwner = message.guild ? message.author.id === message.guild.ownerId : false;
+
     const hasAdminRole = message.member.roles.cache.has(CONFIG.adminControlRole) || message.member.permissions.has(PermissionFlagsBits.Administrator) || isOwner;
     const hasSupportRole = message.member.roles.cache.has(CONFIG.supportRole) || hasAdminRole;
     const hasTicketSupportRole = message.member.roles.cache.has(CONFIG.ticketSupportPingRole) || hasAdminRole;
