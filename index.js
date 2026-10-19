@@ -1,3 +1,16 @@
+// معالجة الأخطاء لمنع كراش البوت وإطفائه
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception thrown:', err);
+});
+
+process.on('uncaughtExceptionMonitor', (err, origin) => {
+    console.error('Uncaught Exception Monitor:', err, origin);
+});
+
 const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
