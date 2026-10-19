@@ -364,7 +364,8 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    if (hasSupportRole && message.content.startsWith("رول")) {
+    // السماح لرول السبورت ورول التكت سبورت 1558832820732821607 بإعطاء الرول
+    if ((hasSupportRole || hasTicketSupportRole) && message.content.startsWith("رول")) {
         let targetMember = null;
         let roleSearchText = "";
 
@@ -630,7 +631,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    if (message.content.startsWith("send") && hasSupportRole) {
+    if (message.content.startsWith("send") && (hasSupportRole || hasTicketSupportRole)) {
         const textToSend = message.content.slice(4).trim();
         const filesToSend = [];
 
