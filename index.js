@@ -770,10 +770,17 @@ client.on('interactionCreate', async (interaction) => {
                 }
             ];
 
+            // فحص عدد الرومات داخل الكاتجوري المخصص للتمكن من فك الروم خارجه في حال وصل 50
+            const channelsInCat = guild.channels.cache.filter(c => c.parentId === CONFIG.ticketCategory1);
+            let targetParent = getValidParent(guild, CONFIG.ticketCategory1);
+            if (channelsInCat.size >= 50) {
+                targetParent = null; // يفك كروم لحاله بدون كاتجوري
+            }
+
             const ticketChannel = await guild.channels.create({
                 name: `ticket-${user.username}`,
                 type: 0,
-                parent: getValidParent(guild, CONFIG.ticketCategory1),
+                parent: targetParent,
                 permissionOverwrites: ticketOverwrites
             });
 
