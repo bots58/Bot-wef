@@ -38,7 +38,7 @@ const {
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMembers, // مهم جداً لدخول الأعضاء
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.DirectMessages
@@ -152,9 +152,10 @@ client.once('ready', async () => {
     }, 30000);
 });
 
-// إعطاء رول غير المفعل تلقائياً عند دخول السيرفر
+// إعطاء رول غير المفعل تلقائياً عند دخول السيرفر وتخطي البوتات
 client.on('guildMemberAdd', async (member) => {
     try {
+        if (member.user.bot) return;
         if (CONFIG.unverifiedRole) {
             await member.roles.add(CONFIG.unverifiedRole);
         }
@@ -186,7 +187,6 @@ client.on('messageCreate', async (message) => {
         }
     }
 
-    // روم الروابط المحدد
     if (message.channel.id === CONFIG.linkRoomTarget) {
         try { await message.delete(); } catch(e) {}
 
@@ -378,7 +378,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // السماح لرول السبورت ورول التكت سبورت 1558832820732821607 بإعطاء الرول
     if ((hasSupportRole || hasTicketSupportRole) && message.content.startsWith("رول")) {
         let targetMember = null;
         let roleSearchText = "";
@@ -770,11 +769,10 @@ client.on('interactionCreate', async (interaction) => {
                 }
             ];
 
-            // فحص عدد الرومات داخل الكاتجوري المخصص للتمكن من فك الروم خارجه في حال وصل 50
             const channelsInCat = guild.channels.cache.filter(c => c.parentId === CONFIG.ticketCategory1);
             let targetParent = getValidParent(guild, CONFIG.ticketCategory1);
             if (channelsInCat.size >= 50) {
-                targetParent = null; // يفك كروم لحاله بدون كاتجوري
+                targetParent = null;
             }
 
             const ticketChannel = await guild.channels.create({
@@ -809,7 +807,6 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.customId.startsWith('ticket_summon_owner_')) {
-        const userId = interaction.user.id;
         const channelId = interaction.channel.id;
         const now = Date.now();
         const cooldownTime = 3 * 60 * 1000;
@@ -1222,7 +1219,7 @@ client.on('interactionCreate', async (interaction) => {
         const parts = interaction.customId.split('_');
         const actionStatus = parts[1];
         const targetUserId = parts[2];
-        const roleId = parts5 = parts[3];
+        const roleId = parts[3];
         const actionType = parts[4];
         const supportUserId = parts[5];
 
