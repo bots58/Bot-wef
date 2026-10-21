@@ -1222,7 +1222,7 @@ client.on('interactionCreate', async (interaction) => {
         const parts = interaction.customId.split('_');
         const actionStatus = parts[1];
         const targetUserId = parts[2];
-        const roleId = parts[3];
+        const roleId = parts5 = parts[3];
         const actionType = parts[4];
         const supportUserId = parts[5];
 
